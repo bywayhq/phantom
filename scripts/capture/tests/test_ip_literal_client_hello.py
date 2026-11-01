@@ -12,7 +12,7 @@ from urllib.parse import urlsplit
 from aioquic.buffer import Buffer
 from aioquic.quic.configuration import QuicConfiguration
 from aioquic.quic.connection import QuicConnection
-from aioquic.quic.crypto import CryptoPair
+from aioquic.quic.crypto import CryptoError, CryptoPair
 from aioquic.quic.packet import QuicPacketType, encode_long_header_first_byte
 
 from scripts.capture import ip_literal_client_hello as capture
@@ -108,6 +108,20 @@ class ClientHelloFromInitialsTest(unittest.TestCase):
             client_hello_from_initials([bytes(invalid), *valid]),
             client_hello_from_initials(valid),
         )
+
+    def test_other_crypto_failures_keep_the_original_error(self) -> None:
+        for message in ("Payload decryption failed", "unexpected crypto failure"):
+            error = CryptoError(message)
+            with self.subTest(message=message):
+                with (
+                    patch(
+                        "aioquic.quic.crypto.CryptoContext.decrypt_packet",
+                        side_effect=error,
+                    ),
+                    self.assertRaises(CryptoError) as raised,
+                ):
+                    client_hello_from_initials(client_initials())
+                self.assertIs(raised.exception, error)
 
     def test_matching_overlaps_and_repeated_offsets_keep_all_crypto_bytes(self) -> None:
         hello = b"\x01\x00\x00\x06abcdef"

@@ -183,12 +183,12 @@ cargo nextest run --workspace --all-targets --all-features --locked
 cargo test --doc --workspace --all-features --locked
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --locked
 cargo +1.88.0 check --workspace --all-targets --locked
-uvx ruff@0.17.1 check scripts/capture scripts/conformance scripts/dev scripts/docs
-uvx ruff@0.17.1 format --check scripts/capture scripts/conformance scripts/dev scripts/docs
-uv run --no-project --python 3.10 --with aioquic==1.3.0 \
+uvx ruff@0.17.3 check scripts/capture scripts/conformance scripts/dev scripts/docs
+uvx ruff@0.17.3 format --check scripts/capture scripts/conformance scripts/dev scripts/docs
+uv run --no-project --python 3.12 --with aioquic==1.7.0 \
   --with h2==4.4.1 --with hpack==4.2.0 \
   python -m unittest discover -s scripts/capture/tests -p 'test_*.py'
-uv run --no-project --python 3.10 --with aioquic==1.3.0 \
+uv run --no-project --python 3.12 --with aioquic==1.7.0 \
   python -m unittest discover -s scripts/conformance/tests -p 'test_*.py'
 uv run --no-project --python 3.10 \
   python -m unittest discover -s scripts/docs/tests -p 'test_*.py'
@@ -198,8 +198,9 @@ uv run --no-project --python 3.10 python scripts/docs/check_docs.py
 ```
 
 On Windows, the capture-test command uses the interpreter pinned in
-`scripts/capture/windows-python-version.txt` instead of Python 3.10. The
-gate selects it automatically; the other Python commands keep Python 3.10.
+`scripts/capture/windows-python-version.txt` instead of Python 3.12. The
+gate selects it for capture and conformance tests. Binding, documentation and
+development checks keep Python 3.10.
 Windows SSE over HTTP/3 requires CPython 3.12.3 or later. This avoids the
 older asynchronous ICMP completion failure, but synchronous receive errors
 can still stop a listener on the pinned runtime.

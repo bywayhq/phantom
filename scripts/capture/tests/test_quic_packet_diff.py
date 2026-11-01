@@ -101,7 +101,7 @@ def client_traffic_crypto(secret: bytes) -> CryptoContext:
 
 
 class QuicPacketDiffTests(unittest.TestCase):
-    def test_rejects_short_samples_before_native_decryption(self) -> None:
+    def test_rejects_short_samples_before_decryption(self) -> None:
         prefix = (
             bytes([encode_long_header_first_byte(VERSION, QuicPacketType.INITIAL, 0)])
             + int(VERSION).to_bytes(4, "big")
@@ -130,7 +130,7 @@ class QuicPacketDiffTests(unittest.TestCase):
                 decrypt.assert_not_called()
                 self.assertEqual(capture.buffered_datagram_count, 0)
 
-    def test_rejects_large_initial_tokens_before_native_decryption(self) -> None:
+    def test_rejects_large_initial_tokens_before_decryption(self) -> None:
         prefix = (
             bytes([encode_long_header_first_byte(VERSION, QuicPacketType.INITIAL, 0)])
             + int(VERSION).to_bytes(4, "big")
@@ -148,7 +148,7 @@ class QuicPacketDiffTests(unittest.TestCase):
                 "decrypt_packet",
                 side_effect=AssertionError("unguarded native decryption"),
             ) as decrypt,
-            self.assertRaisesRegex(ValueError, "native buffer"),
+            self.assertRaisesRegex(ValueError, "capture limit"),
         ):
             capture.summarize(
                 cipher_suite=CIPHER_SUITE,
@@ -157,7 +157,7 @@ class QuicPacketDiffTests(unittest.TestCase):
         decrypt.assert_not_called()
         self.assertEqual(capture.buffered_datagram_count, 0)
 
-    def test_accepts_the_native_header_limit_without_capping_the_whole_packet(
+    def test_accepts_the_header_limit_without_capping_the_whole_packet(
         self,
     ) -> None:
         prefix = (

@@ -242,6 +242,37 @@ class PageAndParserTests(unittest.TestCase):
 
 
 class TicketTests(unittest.TestCase):
+    def test_early_data_finished_includes_end_of_early_data_in_the_transcript(self):
+        context = capture.ServerContext(is_client=False)
+        context.early_data_accepted = True
+        context.key_schedule = tls.KeySchedule(tls.CipherSuite.AES_128_GCM_SHA256)
+        context._dec_key = bytes(32)
+        before = context.key_schedule.hash.copy().finalize()
+
+        context._server_expect_finished()
+
+        self.assertTrue(context.waiting_for_end_of_early_data)
+        self.assertEqual(context.key_schedule.hash.copy().finalize(), before)
+        self.assertEqual(context.state, tls.State.SERVER_EXPECT_FINISHED)
+
+        end_of_early_data = b"\x05\x00\x00\x00"
+        expected = tls.KeySchedule(tls.CipherSuite.AES_128_GCM_SHA256)
+        expected.update_hash(end_of_early_data)
+        verify_data = expected.finished_verify_data(bytes(32))
+        finished = tls.Buffer(capacity=64)
+        tls.push_finished(finished, tls.Finished(verify_data=verify_data))
+        expected.update_hash(finished.data)
+
+        context.end_of_early_data(end_of_early_data)
+
+        self.assertFalse(context.waiting_for_end_of_early_data)
+        self.assertEqual(context._expected_verify_data, verify_data)
+        self.assertEqual(
+            context.key_schedule.hash.copy().finalize(), expected.hash.copy().finalize()
+        )
+        with self.assertRaisesRegex(ValueError, "without accepted early data"):
+            context.end_of_early_data(end_of_early_data)
+
     def test_tickets_carry_early_data_only_when_the_scenario_permits_it(self) -> None:
         for early_data, expected in ((True, 0xFFFFFFFF), (False, None)):
             context = tls.Context(is_client=False)

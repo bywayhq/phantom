@@ -113,7 +113,7 @@ class Http3StreamBoundsTests(unittest.TestCase):
         self.assertEqual(decoder.handle_event(unknown), [])
         self.assertFalse(decoder._is_done)
         self.assertIsNone(quic._close_event)
-        self.assertEqual(decoder._stream[3].buffer, b"")
+        self.assertNotIn(3, decoder._stream)
 
         recorded = capture()
         recorded.stream_data(unknown)

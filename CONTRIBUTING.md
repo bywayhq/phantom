@@ -28,7 +28,8 @@ For workspace tests, install the nextest version used by CI:
 cargo install --locked cargo-nextest@0.9.145
 ```
 
-The Python tooling uses Python 3.10 and `uv`; Windows capture tests use the
+Python tooling uses `uv`. Capture and protocol tests use Python 3.12; other
+checks keep Python 3.10. Windows capture tests use the
 interpreter pinned in `scripts/capture/windows-python-version.txt`. See
 [Capture tools](scripts/capture/README.md) when recording browser evidence.
 

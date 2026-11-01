@@ -3,7 +3,7 @@ use super::native::fetch;
 
 #[tokio::test]
 #[ignore = "requires PHANTOM_CONNECT_UDP_PYTHON with the pinned peer packages"]
-async fn aioquic_1_3_0_shares_one_h3_outer_after_basic_authentication() -> TestResult<()> {
+async fn aioquic_1_7_0_shares_one_h3_outer_after_basic_authentication() -> TestResult<()> {
     named_peer("h3").await
 }
 

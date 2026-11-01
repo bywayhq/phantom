@@ -1,6 +1,6 @@
 """Serve HTTP/3 from aioquic on loopback and report each connection's QUIC version.
 
-aioquic 1.3.0 implements QUIC v1 and v2 and, as a server, moves a client to
+aioquic 1.7.0 implements QUIC v1 and v2 and, as a server, moves a client to
 the first compatible version the client lists as available (RFC 9368). The
 server issues session tickets and accepts early data, so a client's later
 connections can resume. For every connection it prints one line with the

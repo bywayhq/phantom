@@ -25,7 +25,7 @@ impl PythonPeer {
         leg: &str,
         challenge: bool,
     ) -> TestResult<Self> {
-        let interpreter = std::env::var_os("PHANTOM_CONNECT_UDP_PYTHON").ok_or("set PHANTOM_CONNECT_UDP_PYTHON to an interpreter with aioquic 1.3.0, h2 4.4.1 and hpack 4.2.0")?;
+        let interpreter = std::env::var_os("PHANTOM_CONNECT_UDP_PYTHON").ok_or("set PHANTOM_CONNECT_UDP_PYTHON to an interpreter with aioquic 1.7.0, h2 4.4.1 and hpack 4.2.0")?;
         let project = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../..")
             .canonicalize()?;
@@ -79,7 +79,7 @@ impl PythonPeer {
                         .and_then(|p| u16::try_from(p).ok())
                         .filter(|p| *p != 0)
                         .ok_or("invalid Python peer port")?;
-                    assert_eq!(value["aioquic"], "1.3.0");
+                    assert_eq!(value["aioquic"], "1.7.0");
                     assert_eq!(value["h2"], "4.4.1");
                     assert_eq!(value["hpack"], "4.2.0");
                     assert_eq!(value["leg"], leg);

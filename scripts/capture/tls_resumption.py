@@ -448,18 +448,18 @@ class ServerContext(tls.Context):
 
     waiting_for_end_of_early_data = False
 
-    def _server_expect_finished(self, onertt_buf: Buffer) -> None:
+    def _server_expect_finished(self) -> None:
         if self.early_data_accepted and not self.waiting_for_end_of_early_data:
             self.waiting_for_end_of_early_data = True
             self._set_state(tls.State.SERVER_EXPECT_FINISHED)
             return
-        super()._server_expect_finished(onertt_buf)
+        super()._server_expect_finished()
 
     def end_of_early_data(self, message: bytes) -> None:
         if not self.waiting_for_end_of_early_data:
             raise ValueError("EndOfEarlyData without accepted early data")
         self.key_schedule.update_hash(message)
-        super()._server_expect_finished(Buffer(capacity=64))
+        super()._server_expect_finished()
         self.waiting_for_end_of_early_data = False
 
 

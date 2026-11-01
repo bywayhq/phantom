@@ -89,7 +89,7 @@ from .quic_resumption import QUIC_TRANSPORT_PARAMETERS, parse_client_hello
 # The Initial datagram lines were added within version 1; see the module
 # docstring.
 FORMAT = "phantom-snapshot-v1"
-SUPPORTED = {"h2": "4.4.1", "hpack": "4.2.0", "aioquic": "1.3.0"}
+SUPPORTED = {"h2": "4.4.1", "hpack": "4.2.0", "aioquic": "1.7.0"}
 HOST = "127.0.0.1"
 BROWSERS = (*DESKTOP_CHROMIUM_BROWSERS, "firefox", *ANDROID_BROWSERS)
 # QUIC rejects a certificate from an unknown root unless

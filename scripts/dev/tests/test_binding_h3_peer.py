@@ -24,7 +24,7 @@ class H3PeerEnvironmentTests(unittest.TestCase):
         self.python = self.directory / "peer-python"
         self.python.write_bytes(b"interpreter fixture")
 
-    def identity(self, version=(3, 12, 10), aioquic="1.3.0"):
+    def identity(self, version=(3, 12, 10), aioquic="1.7.0"):
         return json.dumps({"python": version, "aioquic": aioquic}).encode()
 
     def test_binding_peers_are_staged_with_an_independent_runtime(self):
@@ -79,7 +79,7 @@ class H3PeerEnvironmentTests(unittest.TestCase):
         )
 
     def test_unsupported_runtime_fails_before_exposing_peer_files(self):
-        for version, aioquic in (((3, 12, 2), "1.3.0"), ((3, 12, 10), "1.2.0")):
+        for version, aioquic in (((3, 12, 2), "1.7.0"), ((3, 12, 10), "1.2.0")):
             with (
                 self.subTest(version=version, aioquic=aioquic),
                 patch.object(
@@ -114,7 +114,7 @@ class H3PeerEnvironmentTests(unittest.TestCase):
         ):
             result = peer.peer_environment(ROOT, self.directory, {})
         self.assertEqual(commands[0][:4], ["uv", "venv", "--python", "3.12.10"])
-        self.assertEqual(commands[1][-1], "aioquic==1.3.0")
+        self.assertEqual(commands[1][-1], "aioquic==1.7.0")
         self.assertTrue(Path(result["PHANTOM_H3_PEER_PYTHON"]).is_file())
         self.assertNotIn("run", commands[0])
 

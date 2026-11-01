@@ -572,8 +572,8 @@ class ResourceServer(QuicServer):
 
 
 async def capture(args) -> None:
-    if metadata.version("aioquic") != "1.3.0":
-        raise ValueError("aioquic 1.3.0 is required")
+    if metadata.version("aioquic") != "1.7.0":
+        raise ValueError("aioquic 1.7.0 is required")
     certificate = generate_certificate()
     run = lifecycle.Run("resources", secrets.token_hex(8), round(args.idle * 1000))
     configuration = QuicConfiguration(is_client=False, alpn_protocols=["h3"])

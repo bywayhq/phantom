@@ -13,7 +13,7 @@
 #   - Every `cargo-nextest@VERSION` matches the recommended nextest-version in
 #     .config/nextest.toml.
 #
-# The search covers tracked files outside vendor/ and fixtures/.
+# The search covers tracked files outside vendor/ and fixture directories.
 #
 # Usage: check-tool-pins.sh
 set -euo pipefail
@@ -27,12 +27,13 @@ fail() {
 }
 
 # Prints `path:line:match` for each match of an extended regular expression in
-# tracked text files outside vendor/ and fixtures/, limited to the optional
-# pathspecs that follow the pattern.
+# tracked text files outside vendor/ and fixture directories, limited to
+# the optional pathspecs that follow the pattern.
 search() {
   local pattern=$1 status=0
   shift
-  git grep -n -o -I -E -e "$pattern" -- "$@" ':!vendor' ':!fixtures' || status=$?
+  git grep -n -o -I -E -e "$pattern" -- "$@" ':!vendor' \
+    ':(exclude,glob)**/fixtures/**' || status=$?
   if ((status > 1)); then
     echo "git grep failed with status $status" >&2
     exit 2

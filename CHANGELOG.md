@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Refresh public-suffix and CA data, Tokio, Brotli and native binding dependencies.
+- Update QUIC tooling to aioquic 1.7 and Ruff to 0.17.3. Capture and protocol
+  tests now use Python 3.12. Migrate: use Python 3.11 or newer for capture
+  tools instead of 3.10. Python bindings continue to support 3.10.
 - Add awaited logical request, response and error hooks that share the request
   deadline and preserve both causes when an error callback fails. EventSource
   can set these hooks per source for its initial GET and reconnects.

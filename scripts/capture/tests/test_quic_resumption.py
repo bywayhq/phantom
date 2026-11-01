@@ -363,7 +363,7 @@ class LoopbackTests(unittest.TestCase):
             SCENARIOS["accept"],
             [result],
             client="aioquic",
-            client_version="1.3.0",
+            client_version=quic_resumption.SUPPORTED_AIOQUIC,
             operating_system="test",
             launch_mode="scripted",
             listen_host="127.0.0.1",

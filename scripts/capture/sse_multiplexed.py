@@ -87,7 +87,7 @@ def library_versions(protocol):
 
     packages = {"h2": "4.4.1", "hpack": "4.2.0"}
     if protocol == "h3":
-        packages["aioquic"] = "1.3.0"
+        packages["aioquic"] = "1.7.0"
     for package, expected in packages.items():
         if version(package) != expected:
             raise ValueError(f"SSE capture requires {package}=={expected}")
@@ -679,7 +679,7 @@ class H3ReconnectServer(MultiplexedServer):
         except BaseException as error:
             self.failures.append(error)
         finally:
-            # aioquic 1.3.0 schedules these two handles; retire even on timeout.
+            # aioquic 1.7.0 schedules these two handles; retire even on timeout.
             for protocol in self.protocols:
                 for attribute in ("_timer", "_transmit_task"):
                     handle = getattr(protocol, attribute)

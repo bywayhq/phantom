@@ -53,7 +53,7 @@ from .http2_session import (
 from .http3_wire import pull_varint
 
 FORMAT = "phantom-cookie-crumbs-v1"
-SUPPORTED = {"h2": "4.4.1", "hpack": "4.2.0", "aioquic": "1.3.0"}
+SUPPORTED = {"h2": "4.4.1", "hpack": "4.2.0", "aioquic": "1.7.0"}
 # Set in this order by `/start`. Firefox's HTTP/2 compressor sends a crumb
 # shorter than 20 bytes as a never-indexed literal and indexes a longer one,
 # so `pc` (19 bytes) and `pd` (20 bytes) straddle that boundary.

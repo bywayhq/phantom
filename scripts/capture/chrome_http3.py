@@ -49,7 +49,7 @@ from .quic_packet_diff import QuicPacketAnalysis, QuicPacketCapture
 from .quic_summary import SymbolicSpan
 from .reserved_ports import open_past_reserved_ports
 
-SUPPORTED_AIOQUIC = "1.3.0"
+SUPPORTED_AIOQUIC = "1.7.0"
 MAX_STREAM_CAPTURE = 256 * 1024
 MAX_CAPTURE_STREAMS = 128
 MAX_CAPTURE_STREAM_BYTES = 1024 * 1024

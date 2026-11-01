@@ -10,7 +10,7 @@ changes. See [Which tool to run](#which-tool-to-run) and the
 Keep the browser build, platform, launch settings and reproduction commands
 with each fixture.
 Run every command from the repository root; the Python tools need Python
-3.10 or later. Windows SSE captures over HTTP/3 require CPython 3.12.3 or
+3.11 or later. Windows SSE captures over HTTP/3 require CPython 3.12.3 or
 later. Every listener refuses a non-loopback address.
 
 ## Quick fingerprint snapshot
@@ -21,13 +21,13 @@ with the browser's retained fixtures:
 Set the browser path, build and operating system below to your machine's values.
 
 ```sh
-uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
+uv run --no-project --python 3.12 --with-requirements scripts/requirements.txt \
   python -m scripts.capture.snapshot --browser chrome \
   --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
   --client-version 154.0.8037.97 \
   --operating-system "Windows 11 Home 10.0.26200 x64" \
   --repeat 3 --output-dir <scratch-directory>/chrome
-uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
+uv run --no-project --python 3.12 --with-requirements scripts/requirements.txt \
   python -m scripts.capture.snapshot_compare --browser chrome \
   <scratch-directory>/chrome/snapshot-1.txt
 ```
@@ -133,7 +133,7 @@ terminator, have a 64 KiB limit.
 the device in `ANDROID_SERIAL`, as under [Android browsers](#android-browsers):
 
 ```sh
-ANDROID_SERIAL=emulator-5556 uv run --no-project --python 3.10   --with-requirements scripts/requirements.txt   python -m scripts.capture.snapshot --browser chrome-android   --browser-path "$ANDROID_SDK_ROOT/platform-tools/adb"   --client-version 154.0.8037.57   --operating-system "Android 17 (API 37) x86_64 emulator reporting Pixel 7 CP3A.260905.009"   --repeat 3 --output-dir <scratch-directory>/chrome-android
+ANDROID_SERIAL=emulator-5556 uv run --no-project --python 3.12   --with-requirements scripts/requirements.txt   python -m scripts.capture.snapshot --browser chrome-android   --browser-path "$ANDROID_SDK_ROOT/platform-tools/adb"   --client-version 154.0.8037.57   --operating-system "Android 17 (API 37) x86_64 emulator reporting Pixel 7 CP3A.260905.009"   --repeat 3 --output-dir <scratch-directory>/chrome-android
 ```
 
 The launcher opens the page URL with a `VIEW` intent
@@ -211,7 +211,7 @@ Run it from the repository root with the capture requirements installed. Jobs
 start under the runner's Python interpreter:
 
 ```sh
-uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
+uv run --no-project --python 3.12 --with-requirements scripts/requirements.txt \
   python -m scripts.capture.run_matrix captures.json
 ```
 
@@ -595,7 +595,7 @@ Pass `--browser <name>-android`, the adb executable as `--browser-path`, and
 the device serial in `ANDROID_SERIAL`:
 
 ```sh
-ANDROID_SERIAL=emulator-5556 uv run --no-project --python 3.10 \
+ANDROID_SERIAL=emulator-5556 uv run --no-project --python 3.12 \
   python -m scripts.capture.client_hints \
   --browser chrome-android \
   --browser-path "$ANDROID_SDK_ROOT/platform-tools/adb" \
@@ -706,7 +706,7 @@ The hold defaults to eight seconds. It must be finite and nonnegative;
 zero stops the browser immediately after opening the page.
 
 ```sh
-ANDROID_SERIAL=emulator-5556 uv run --no-project --python 3.10 \
+ANDROID_SERIAL=emulator-5556 uv run --no-project --python 3.12 \
   python -m scripts.capture.android_run \
   --browser chrome-android \
   --adb "$ANDROID_SDK_ROOT/platform-tools/adb" \
@@ -786,7 +786,7 @@ commands prevent success, even when a fixture exists.
 Capture Chrome on Windows:
 
 ```sh
-uv run --no-project --python 3.10 python -m scripts.capture.sse_reconnect \
+uv run --no-project --python 3.12 python -m scripts.capture.sse_reconnect \
   --browser chrome \
   --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
   --client-version 154.0.8037.58 \
@@ -849,7 +849,7 @@ scenario.
 Capture Chrome on Windows:
 
 ```sh
-uv run --no-project --python 3.10 --with h2==4.4.1 --with hpack==4.2.0 \
+uv run --no-project --python 3.12 --with h2==4.4.1 --with hpack==4.2.0 \
   --with cryptography==50.0.1 python -m scripts.capture.http2_websocket \
   --browser chrome \
   --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
@@ -965,7 +965,7 @@ field names. Valid names keep their original case and order.
 Capture Chrome on Windows:
 
 ```sh
-uv run --no-project --python 3.10 python -m scripts.capture.client_hints \
+uv run --no-project --python 3.12 python -m scripts.capture.client_hints \
   --browser chrome \
   --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
   --client-version 154.0.8037.97 \
@@ -1011,7 +1011,7 @@ resource acquisition, and the renderer checks derived launch values before
 publication. Protocol setup failures retain and retire the accepted socket.
 
 ```sh
-uv run --no-project --python 3.10 --with h2==4.4.1 --with hpack==4.2.0 \
+uv run --no-project --python 3.12 --with h2==4.4.1 --with hpack==4.2.0 \
   --with cryptography==50.0.1 python -m scripts.capture.http2_preface_ping \
   --browser chrome \
   --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
@@ -1112,14 +1112,14 @@ matrix manifest. Use a separate output directory for each protocol; each writes
 Capture Chrome and Firefox on Windows:
 
 ```sh
-uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
+uv run --no-project --python 3.12 --with-requirements scripts/requirements.txt \
   python -m scripts.capture.http_lifecycle --browser chrome \
   --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
   --client-version 154.0.8037.97 \
   --operating-system "Windows 11 Home 10.0.26200 x64" \
   --scenario close \
   --output-dir fixtures/lifecycle/chrome/154.0.8037.97/windows-11-26200
-uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
+uv run --no-project --python 3.12 --with-requirements scripts/requirements.txt \
   python -m scripts.capture.http_lifecycle --browser firefox \
   --browser-path "C:/Program Files/Mozilla Firefox/firefox.exe" \
   --client-version 157.0 \
@@ -1152,7 +1152,7 @@ sent nothing, followed by another for the same path.
 
 ```sh
 cargo build -p phantom-net --example capture_alps_accept_ch
-uv run --no-project --python 3.10 python -m scripts.capture.alps_accept_ch \
+uv run --no-project --python 3.12 python -m scripts.capture.alps_accept_ch \
   --browser chrome \
   --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
   --client-version 154.0.8037.97 \
@@ -1217,7 +1217,7 @@ Build the examples, then capture Opera's HTTP/2 and HTTP/3 startups:
 ```sh
 cargo build -p phantom-testkit --example capture_client_hello
 cargo build -p phantom-net --example capture_http2_tls
-uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt   python -m scripts.capture.startup_capture   --browser opera   --browser-path "$LOCALAPPDATA/Programs/Opera/135.0.5973.92/opera.exe"   --client-version 135.0.5973.92   --operating-system "Windows 11 Home 10.0.26200 x64"   --layer http2 --navigate devtools --repeat 3   --output-dir <scratch-directory>/opera-http2
+uv run --no-project --python 3.12 --with-requirements scripts/requirements.txt   python -m scripts.capture.startup_capture   --browser opera   --browser-path "$LOCALAPPDATA/Programs/Opera/135.0.5973.92/opera.exe"   --client-version 135.0.5973.92   --operating-system "Windows 11 Home 10.0.26200 x64"   --layer http2 --navigate devtools --repeat 3   --output-dir <scratch-directory>/opera-http2
 ```
 
 Use `--layer http3` for the QUIC ClientHello and HTTP/3 startup, and
@@ -1261,7 +1261,7 @@ deadline. Callback failures and incomplete cleanup prevent publication.
 Capture Chrome on Windows:
 
 ```sh
-uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt   python -m scripts.capture.quic_resumption   --browser chrome   --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe"   --client-version 154.0.8037.58   --operating-system "Windows 11 Home 10.0.26200 x64"   --scenario accept --repeat 5   --output-dir fixtures/http3/chrome/154.0.8037.58/windows-11-26200
+uv run --no-project --python 3.12 --with-requirements scripts/requirements.txt   python -m scripts.capture.quic_resumption   --browser chrome   --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe"   --client-version 154.0.8037.58   --operating-system "Windows 11 Home 10.0.26200 x64"   --scenario accept --repeat 5   --output-dir fixtures/http3/chrome/154.0.8037.58/windows-11-26200
 ```
 
 The retained `accept-delayed` and `reject` fixtures used `--repeat 3`.
@@ -1273,7 +1273,7 @@ Edge, use
 `--browser edge --browser-path "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"`,
 and for Firefox,
 `--browser firefox --browser-path "C:/Program Files/Mozilla Firefox/firefox.exe"`.
-The tool refuses an aioquic version other than 1.3.0.
+The tool refuses an aioquic version other than 1.7.0.
 
 Each run serves `server.phantom.test` over HTTP/3 from aioquic on a loopback
 UDP port bound to port 0. The server sends one NewSessionTicket per
@@ -1348,12 +1348,12 @@ limit. Expected disconnects preserve independent cleanup errors.
 Capture Chrome on Windows:
 
 ```sh
-uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt   python -m scripts.capture.tls_resumption   --browser chrome   --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe"   --client-version 154.0.8037.58   --operating-system "Windows 11 Home 10.0.26200 x64"   --scenario all --repeat 3   --output-dir fixtures/tls/chrome/154.0.8037.58/windows-11-26200
+uv run --no-project --python 3.12 --with-requirements scripts/requirements.txt   python -m scripts.capture.tls_resumption   --browser chrome   --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe"   --client-version 154.0.8037.58   --operating-system "Windows 11 Home 10.0.26200 x64"   --scenario all --repeat 3   --output-dir fixtures/tls/chrome/154.0.8037.58/windows-11-26200
 ```
 
 Use the other browsers' paths from [Browser launcher](#browser-launcher) and
 [QUIC resumption and 0-RTT](#quic-resumption-and-0-rtt). The tool refuses an
-aioquic version other than 1.3.0.
+aioquic version other than 1.7.0.
 
 The server is aioquic's TLS 1.3 handshake with a TLS record layer in the
 tool, on two loopback TCP listeners bound to port 0 (`a` and `b`). It serves
@@ -1430,12 +1430,12 @@ of sizes shows which host length Firefox pads by.
 Capture one TCP run and one QUIC run on Windows:
 
 ```sh
-uv run --no-project --python 3.10 --with aioquic==1.3.0 \
+uv run --no-project --python 3.12 --with aioquic==1.7.0 \
   python -m scripts.capture.ip_literal_client_hello \
   --firefox-path "C:/Program Files/Mozilla Firefox/firefox.exe" \
   --transport tcp --family ipv4 --grease-size 93 \
   --output fixtures/tls/firefox/157.0/windows-11-26200/ip-literal/tcp-ipv4-grease-size-93.txt
-uv run --no-project --python 3.10 --with aioquic==1.3.0 \
+uv run --no-project --python 3.12 --with aioquic==1.7.0 \
   python -m scripts.capture.ip_literal_client_hello \
   --firefox-path "C:/Program Files/Mozilla Firefox/firefox.exe" \
   --transport quic --family ipv4 \
@@ -1503,7 +1503,7 @@ covers the wait for the page to finish, rather than browser startup or cleanup.
 Capture Chrome on Windows:
 
 ```sh
-uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
+uv run --no-project --python 3.12 --with-requirements scripts/requirements.txt \
   python -m scripts.capture.alt_svc_race \
   --browser chrome \
   --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
@@ -1655,7 +1655,7 @@ both values to the job ID and writes `<proxy>-<origin-alpn>-<scenario>.txt`.
 Check the manifest first, then remove `--dry-run` to capture:
 
 ```sh
-uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
+uv run --no-project --python 3.12 --with-requirements scripts/requirements.txt \
   python -m scripts.capture.run_matrix <new-manifest>.json --dry-run \
   --jobs 1 --retries 0 --work-dir <scratch-directory>/work \
   --results <scratch-directory>/results.json
@@ -1678,7 +1678,7 @@ writing its fixture. Split larger experiments into separate runs.
 Capture Chrome on Windows:
 
 ```sh
-uv run --no-project --python 3.10 --with h2==4.4.1 --with hpack==4.2.0 \
+uv run --no-project --python 3.12 --with h2==4.4.1 --with hpack==4.2.0 \
   --with cryptography==50.0.1 python -m scripts.capture.proxy_route \
   --browser chrome \
   --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
@@ -1914,7 +1914,7 @@ The [Firefox 157 capture](../../fixtures/tls/firefox/157.0/windows-11-26200/ech-
 resolves B's addresses without querying its HTTPS record.
 
 ```sh
-uv run --no-project --python 3.10 python -m scripts.capture.chrome_ech \
+uv run --no-project --python 3.12 python -m scripts.capture.chrome_ech \
   --browser firefox --browser-path '<firefox>' --client-version 158.0.1 \
   --operating-system '<host OS>' --headful --scenario accept \
   --origin 127.0.0.1:0 --capture-binary '<capture_ech_client_hello>' \
@@ -1947,7 +1947,7 @@ Build the example, then capture both scenarios:
 
 ```sh
 cargo build -p phantom-net --example capture_ech_client_hello
-uv run --no-project --python 3.10 python -m scripts.capture.chrome_ech \
+uv run --no-project --python 3.12 python -m scripts.capture.chrome_ech \
   --browser chrome \
   --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
   --client-version 154.0.8037.58 \
@@ -1955,7 +1955,7 @@ uv run --no-project --python 3.10 python -m scripts.capture.chrome_ech \
   --scenario accept \
   --capture-binary target/debug/examples/capture_ech_client_hello.exe \
   --output fixtures/tls/chrome/154.0.8037.58/windows-11-26200/ech-accept.txt
-uv run --no-project --python 3.10 python -m scripts.capture.chrome_ech   --browser edge   --browser-path "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"   --client-version 153.0.4234.48   --operating-system "Windows 11 Home 10.0.26200 x64"   --scenario accept   --doh-port 65355 --dns-from-policy   --capture-binary target/debug/examples/capture_ech_client_hello.exe   --output fixtures/tls/edge/153.0.4234.48/windows-11-26200/ech-accept.txt
+uv run --no-project --python 3.12 python -m scripts.capture.chrome_ech   --browser edge   --browser-path "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"   --client-version 153.0.4234.48   --operating-system "Windows 11 Home 10.0.26200 x64"   --scenario accept   --doh-port 65355 --dns-from-policy   --capture-binary target/debug/examples/capture_ech_client_hello.exe   --output fixtures/tls/edge/153.0.4234.48/windows-11-26200/ech-accept.txt
 ```
 
 | Scenario | Question |
@@ -1977,7 +1977,7 @@ outer fields as a TCP connection, the inner server name, and how the
 handshake ended, including the close code the browser sent:
 
 ```sh
-uv run --no-project --python 3.10 python -m scripts.capture.chrome_ech \
+uv run --no-project --python 3.12 python -m scripts.capture.chrome_ech \
   --browser chrome \
   --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
   --client-version 154.0.8037.58 \
@@ -2034,7 +2034,7 @@ or listener. IPv4 disables IPv6. IPv6 prefers IPv6 without excluding IPv4.
 Capture Chrome on Windows:
 
 ```sh
-uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt   python -m scripts.capture.cookie_crumbs   --browser chrome   --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe"   --client-version 154.0.8037.58   --operating-system "Windows 11 Home 10.0.26200 x64"   --scenario all --repeat 3   --output-dir fixtures/cookies/chrome/154.0.8037.58/windows-11-26200
+uv run --no-project --python 3.12 --with-requirements scripts/requirements.txt   python -m scripts.capture.cookie_crumbs   --browser chrome   --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe"   --client-version 154.0.8037.58   --operating-system "Windows 11 Home 10.0.26200 x64"   --scenario all --repeat 3   --output-dir fixtures/cookies/chrome/154.0.8037.58/windows-11-26200
 ```
 
 For Edge, use
@@ -2042,7 +2042,7 @@ For Edge, use
 and for Firefox,
 `--browser firefox --browser-path "C:/Program Files/Mozilla Firefox/firefox.exe"`.
 The tool refuses `h2`, `hpack`, and `aioquic` versions other than 4.4.1,
-4.2.0, and 1.3.0.
+4.2.0, and 1.7.0.
 
 Each run loads `/start`, whose response sets five probe cookies with
 `Path=/`, and navigates to `/page`, which fetches `/fetch` and then `/done`
@@ -2113,7 +2113,7 @@ the fixture records the selected mode in `launch_mode`.
 Capture Opera on Windows:
 
 ```sh
-uv run --no-project --python 3.10 \
+uv run --no-project --python 3.12 \
   --with-requirements scripts/requirements.txt \
   --with-requirements scripts/capture/hooks-requirements.txt \
   python -m scripts.capture.socket_hooks --browser opera \
@@ -2234,7 +2234,7 @@ uses administrator access:
 
 ```sh
 sudo -v
-uv run --no-project --python 3.10 \
+uv run --no-project --python 3.12 \
   --with-requirements scripts/requirements.txt \
   python -m scripts.capture.mac_native_dns_capture \
   --firefox /Applications/Firefox.app/Contents/MacOS/firefox \
@@ -2287,7 +2287,7 @@ twice, `backup` five times, and the other three scenarios once:
 
 ```sh
 run() {
-  uv run --no-project --python 3.10 \
+  uv run --no-project --python 3.12 \
     --with-requirements scripts/requirements.txt \
     --with-requirements scripts/capture/hooks-requirements.txt \
     python -m scripts.capture.firefox_socket_hooks \

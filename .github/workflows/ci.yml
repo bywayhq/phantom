@@ -111,7 +111,7 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.10"
+          python-version: "3.12"
 
       - name: Prepare isolated HTTP/3 peer
         shell: bash
@@ -125,7 +125,7 @@ jobs:
           else
             peer="$RUNNER_TEMP/phantom-h3-peer/bin/python"
           fi
-          "$peer" -m pip install --disable-pip-version-check aioquic==1.3.0
+          "$peer" -m pip install --disable-pip-version-check aioquic==1.7.0
           printf 'PHANTOM_H3_PEER_PYTHON=%s\n' "$peer" >> "$GITHUB_ENV"
 
       - name: Install Python tooling
@@ -240,7 +240,7 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.10"
+          python-version: "3.12"
 
       - name: Test documentation checker
         run: python -m unittest discover -s scripts/docs/tests -p 'test_*.py'
@@ -466,7 +466,7 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.10"
+          python-version: "3.12"
 
       - name: Prepare isolated HTTP/3 peer
         shell: bash
@@ -480,7 +480,7 @@ jobs:
           else
             peer="$RUNNER_TEMP/phantom-h3-peer/bin/python"
           fi
-          "$peer" -m pip install --disable-pip-version-check aioquic==1.3.0
+          "$peer" -m pip install --disable-pip-version-check aioquic==1.7.0
           printf 'PHANTOM_H3_PEER_PYTHON=%s\n' "$peer" >> "$GITHUB_ENV"
 
       - name: Lint

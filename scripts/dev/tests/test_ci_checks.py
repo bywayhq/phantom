@@ -50,16 +50,16 @@ class CiCheckTests(unittest.TestCase):
             destination = self.root / "scripts/ci" / name
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(REPO / "scripts/ci" / name, destination)
-        self.write("scripts/requirements.in", "ruff==0.17.1\n")
-        self.write("scripts/requirements.txt", "ruff==0.17.1\n")
-        self.write("pyproject.toml", 'required-version = "==0.17.1"\n')
+        self.write("scripts/requirements.in", "ruff==0.17.3\n")
+        self.write("scripts/requirements.txt", "ruff==0.17.3\n")
+        self.write("pyproject.toml", 'required-version = "==0.17.3"\n')
         self.write(".github/workflows/ci.yml", "  SHELLCHECK_VERSION: v0.11.0\n")
         self.write(
             ".config/nextest.toml", 'nextest-version = { recommended = "0.9.145" }\n'
         )
         self.write(
             "tools.md",
-            "ruff@0.17.1 --with ruff==0.17.1 nightly-2026-09-01\n"
+            "ruff@0.17.3 --with ruff==0.17.3 nightly-2026-09-01\n"
             "ShellCheck 0.11.0 cargo-nextest@0.9.145\n",
         )
         self.write(
@@ -321,6 +321,26 @@ fn ordinary() {}
                 self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
                 self.assertIn("git grep failed with status 2", result.stderr)
                 self.assertNotIn(" agree", result.stdout)
+
+    def test_retained_fixture_commands_do_not_hide_live_pin_drift(self) -> None:
+        old_version = "0.0.1"
+        old_nightly = "2020-01-01"
+        self.write(
+            "crates/demo/tests/fixtures/capture-command.txt",
+            f"uv run --with ruff=={old_version} ruff@{old_version} nightly-{old_nightly}\n",
+        )
+        subprocess.run(
+            ["git", "-c", "core.autocrlf=false", "-C", str(self.root), "add", "."],
+            check=True,
+        )
+        retained = self.run_check("check-tool-pins.sh", "unused", 1)
+        self.assertEqual(retained.returncode, 0, retained.stdout + retained.stderr)
+
+        self.write("tools.md", f"ruff@{old_version} --with ruff=={old_version}\n")
+        live = self.run_check("check-tool-pins.sh", "unused", 1)
+        self.assertEqual(live.returncode, 1, live.stdout + live.stderr)
+        self.assertIn("tools.md:1", live.stderr)
+        self.assertIn("pins ruff==0.17.3", live.stderr)
 
     def test_optional_pin_search_no_matches_is_success(self) -> None:
         result = self.run_check("check-tool-pins.sh", "ShellCheck ", 1)

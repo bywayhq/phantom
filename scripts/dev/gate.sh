@@ -376,7 +376,7 @@ if ! PYO3_PYTHON=$("${python[@]}" python -c 'import sys; sys.stdout.write(sys.ex
   exit 69
 fi
 export PYO3_PYTHON
-capture_python=("${python[@]}")
+capture_python=(uv run --no-project --python 3.12)
 defer_capture=false
 case "$(uname -s)" in
   MINGW* | MSYS* | CYGWIN*)
@@ -437,15 +437,15 @@ chain_linux() {
   run_step linux-msrv - "$lock" "$wsl_cargo" --target-name msrv     "+$msrv" check -j "$jobs" --workspace --all-targets --locked
 }
 capture_tests() {
-  run_step capture-tests - "${capture_python[@]}" --with aioquic==1.3.0 --with h2==4.4.1 \
+  run_step capture-tests - "${capture_python[@]}" --with aioquic==1.7.0 --with h2==4.4.1 \
     --with hpack==4.2.0 python -m unittest discover -s scripts/capture/tests -p 'test_*.py'
 }
 chain_python() {
-  local ruff=(uvx ruff@0.17.1) paths=(scripts/capture scripts/conformance scripts/dev scripts/docs scripts/release bindings/python)
+  local ruff=(uvx ruff@0.17.3) paths=(scripts/capture scripts/conformance scripts/dev scripts/docs scripts/release bindings/python)
   run_step ruff-check - "${ruff[@]}" check "${paths[@]}"
   run_step ruff-format - "${ruff[@]}" format --check "${paths[@]}"
   [[ $defer_capture == true ]] || capture_tests
-  run_step conformance-tests - "${python[@]}" --with aioquic==1.3.0 \
+  run_step conformance-tests - "${capture_python[@]}" --with aioquic==1.7.0 \
     python -m unittest discover -s scripts/conformance/tests -p 'test_*.py'
   run_step docs-tests - "${python[@]}" \
     python -m unittest discover -s scripts/docs/tests -p 'test_*.py'

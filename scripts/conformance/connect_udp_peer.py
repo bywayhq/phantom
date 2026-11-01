@@ -203,7 +203,7 @@ async def udp_relay(destination, received):
 
 
 def datagram_fits(quic, stream_id, data):
-    # Pinned aioquic 1.3.0 packet_builder.py: 1-RTT header is 3 + peer CID,
+    # Pinned aioquic 1.7.0 packet_builder.py: 1-RTT header is 3 + peer CID,
     # followed by the AEAD tag. connection.py adds type and varint length.
     payload_size = len(varint(stream_id // 4)) + len(data)
     frame_size = 1 + len(varint(payload_size)) + payload_size
@@ -224,7 +224,7 @@ class DatagramH3(H3Connection):
         return True
 
     def _get_local_settings(self):
-        # Pinned aioquic 1.3.0 seam: enable RFC 9297 without WebTransport.
+        # Pinned aioquic 1.7.0 seam: enable RFC 9297 without WebTransport.
         settings = super()._get_local_settings()
         settings[Setting.H3_DATAGRAM] = 1
         return settings
@@ -499,7 +499,7 @@ async def h2_connection(reader, writer, stats, challenge):
 
 
 async def run(args):
-    for package, version in (("aioquic", "1.3.0"), ("h2", "4.4.1"), ("hpack", "4.2.0")):
+    for package, version in (("aioquic", "1.7.0"), ("h2", "4.4.1"), ("hpack", "4.2.0")):
         if importlib.metadata.version(package) != version:
             raise ValueError(f"peer requires {package}=={version}")
     certificate = x509.load_der_x509_certificate(
@@ -563,7 +563,7 @@ async def run(args):
             {
                 "port": address[1],
                 "leg": args.leg,
-                "aioquic": "1.3.0",
+                "aioquic": "1.7.0",
                 "h2": "4.4.1",
                 "hpack": "4.2.0",
             }

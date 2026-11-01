@@ -74,7 +74,7 @@ from .http3_wire import (
 )
 from .reserved_ports import open_past_reserved_ports
 
-SUPPORTED_AIOQUIC = "1.3.0"
+SUPPORTED_AIOQUIC = "1.7.0"
 FORMAT = "phantom-quic-resumption-v1"
 RETIRE_DELAY_SECONDS = 0.05
 RETIRE_WAIT_MILLISECONDS = 300

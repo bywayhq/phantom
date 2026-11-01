@@ -31,6 +31,7 @@ from pathlib import Path
 from aioquic.buffer import Buffer
 from aioquic.quic.crypto import CryptoError, CryptoPair
 from aioquic.quic.packet import QuicPacketType, QuicProtocolVersion, pull_quic_header
+from cryptography.exceptions import InvalidTag
 
 from scripts.capture.browser_launch import LaunchedBrowser, LaunchPlan
 from scripts.capture.fixture_file import write_text_fixture
@@ -247,7 +248,8 @@ def client_hello_from_initials(datagrams: Sequence[bytes]) -> bytes | None:
                 except CryptoError as error:
                     if candidate is not crypto:
                         candidate.teardown()
-                    if str(error) != "Payload decryption failed":
+                    # aioquic 1.7 wraps InvalidTag without a stable message.
+                    if not isinstance(error.__context__, InvalidTag):
                         raise
                     continue  # Only an authentication mismatch is unrelated traffic.
                 if crypto is None:

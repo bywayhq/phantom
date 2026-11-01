@@ -82,7 +82,7 @@ jobs:
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.10"
+          python-version: "3.12"
 
       - name: Install runner prerequisites
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'

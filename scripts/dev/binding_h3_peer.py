@@ -34,7 +34,7 @@ def peer_environment(root, directory, environment=None):
         )
         python = runtime / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
         subprocess.run(
-            ["uv", "pip", "install", "--python", str(python), "aioquic==1.3.0"],
+            ["uv", "pip", "install", "--python", str(python), "aioquic==1.7.0"],
             check=True,
             timeout=180,
         )
@@ -49,8 +49,8 @@ def peer_environment(root, directory, environment=None):
             timeout=30,
         )
     )
-    if tuple(identity["python"]) < (3, 12, 3) or identity["aioquic"] != "1.3.0":
-        raise ValueError("HTTP/3 peer requires Python >=3.12.3 and aioquic 1.3.0")
+    if tuple(identity["python"]) < (3, 12, 3) or identity["aioquic"] != "1.7.0":
+        raise ValueError("HTTP/3 peer requires Python >=3.12.3 and aioquic 1.7.0")
     peer = directory / "h3-peer"
     peer.mkdir()
     for name in PEER_FILES:
