@@ -1504,7 +1504,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-cli"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "clap",
  "http",
@@ -1518,7 +1518,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-go"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "futures-util",
  "http",
@@ -1569,7 +1569,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-http"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "base64 0.23.1",
  "brotli",
@@ -1633,7 +1633,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-net"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "brotli",
  "bytes",
@@ -1674,7 +1674,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-node"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "bytes",
  "futures-util",
@@ -1692,14 +1692,14 @@ dependencies = [
 
 [[package]]
 name = "phantom-profile"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "serde_json",
 ]
 
 [[package]]
 name = "phantom-python"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "futures-util",
  "http",
@@ -1715,7 +1715,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-quic-btls"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "bytes",
  "foreign-types",
@@ -1772,7 +1772,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-testkit"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "phantom-profile",
  "tokio",

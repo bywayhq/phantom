@@ -2,45 +2,22 @@
 
 ## Unreleased
 
-- Share capture source hashing and browser ownership across proxy scenarios.
-  Proxy launches use the same Windows process cleanup as other captures.
-- Import profiles from pinned peer source without requiring peer execution
-  for every layer; reuse unchanged components and observations across updates.
-- Breaking: add `option_policy` to `TcpSettings` and `UdpSettings`. Built-in
-  recipes tolerate rejected connection tuning; custom settings default to
-  `SocketOptionPolicy::Required`. Source/interface binding and DNS port
-  randomness remain required. Migrate: add `option_policy` to struct literals,
-  or use `..Default::default()`; set `Required` to enforce recipe tuning.
-- Allow upload captures to finish on another connection owned by the run.
-- Add HTTP/1.1 and HTTP/2 fetch and fetch-upload contexts to Chrome 156 Windows.
-- Breaking: select lifecycle capture protocols with `--protocol`.
-  Migrate: replace `--resource-protocol` with `--protocol` in capture commands
-  and manifests.
-- Add a hosted Windows native-DNS scene for HTTPS records and ECH acceptance.
-- Breaking: profile exports include named request contexts, so imported profiles
-  and offline bundles support per-request context selection on one client. Migrate: readers
-  of `phantom.custom-profile` must accept version 2 and its `request_contexts`
-  object; version-1 documents still import with their selected template only.
-- Add a hosted Windows native-DNS scene for short-TTL cache observations.
-- Add a hosted Windows native-DNS scene for multi-address selection.
-- Add no-store fetch contexts to Chrome 156 desktop profiles on Windows,
-  Linux and macOS.
+### Bindings
+
 - Reduce Python streaming overhead by converting body chunks during async
   completion.
 - Go shutdown waits for requests admitted before their first async poll.
 - Preserve the original native failure in pending Go operations.
 - Python, Go and Node add native streams for reading server-sent events.
-- Rust SSE streams retain HTTP trailers and can validate response metadata
-  without consuming its body. `SseEvent::into_parts` transfers owned fields.
 - Python, Go and Node add WebSockets with shared client connections and session
   state, message limits, cancellation and readable rejected handshakes.
 - Aborting a Python client invalidates its unread response bodies.
 - Breaking: Python `close()`/`aclose()` and Node `close()` wait for admitted
   work to finish. A timeout leaves that work usable.
   Migrate: use Python `abort()` or Node `destroy()` to cancel active work.
-- Select navigation, fetch and resource contexts per request in Rust, Python
-  and Go, sharing the client's connections and session state. Node uses the
-  same template cache and also exposes resource contexts.
+- Select navigation, fetch and resource contexts per request in Python and Go,
+  sharing the client's connections and session state. Node uses the same
+  template cache and also exposes resource contexts.
 - Python adds method helpers, ordered query fields, JSON/form bodies, streaming
   context managers and duplicate-aware header lookup.
 - Node adds client request defaults, method helpers and ordered query,
@@ -48,11 +25,41 @@
 - Breaking: Go uses purego and a typed request/stream interface without cgo.
   Migrate: replace Unix linker and loader flags with `PHANTOM_GO_LIBRARY`
   pointing to the native library, or place it beside your executable.
-- Accept bounded, already encoded request bodies with an exact content type
-  through `PreparedRequestBody::encoded`.
 - Go reserves response capacity before sending and keeps existing bodies
   readable when request or session operations fill admission capacity.
 - Avoid delaying Go uploads while waiting for further native events.
+
+## 0.6.0 - 2026-11-01
+
+- Select navigation, fetch and resource contexts per request, sharing the
+  client's connections and session state.
+- Breaking: add `option_policy` to `TcpSettings` and `UdpSettings`. Built-in
+  recipes tolerate rejected connection tuning; custom settings default to
+  `SocketOptionPolicy::Required`. Source/interface binding and DNS port
+  randomness remain required. Migrate: add `option_policy` to struct literals,
+  or use `..Default::default()`; set `Required` to enforce recipe tuning.
+- Breaking: profile exports include named request contexts, so imported profiles
+  and offline bundles support per-request context selection on one client.
+  Migrate: readers of `phantom.custom-profile` must accept version 2 and its
+  `request_contexts` object; version-1 documents still import with their selected
+  template only.
+- Add HTTP/1.1 and HTTP/2 fetch and fetch-upload contexts to Chrome 156 Windows.
+- Add no-store fetch contexts to Chrome 156 desktop profiles on Windows,
+  Linux and macOS.
+- Rust SSE streams retain HTTP trailers and can validate response metadata
+  without consuming its body. `SseEvent::into_parts` transfers owned fields.
+- Accept bounded, already encoded request bodies with an exact content type
+  through `PreparedRequestBody::encoded`.
+- Import profiles from pinned peer source without requiring peer execution
+  for every layer; reuse unchanged components and observations across updates.
+- Share capture source hashing and browser ownership across proxy scenarios.
+  Proxy launches use the same Windows process cleanup as other captures.
+- Allow upload captures to finish on another connection owned by the run.
+- Breaking: select lifecycle capture protocols with `--protocol`.
+  Migrate: replace `--resource-protocol` with `--protocol` in capture commands
+  and manifests.
+- Add hosted Windows native-DNS scenes for multi-address selection, short-TTL
+  cache observations and HTTPS records with ECH acceptance.
 - Keep timeout and exit reasons in QUIC reports when command paths are long.
 
 ## 0.5.1 - 2026-10-26

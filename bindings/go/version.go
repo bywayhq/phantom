@@ -1,5 +1,5 @@
 package phantom
 
 // Release preparation checks this against the native Cargo package version.
-const nativePackageVersion = "0.5.1"
+const nativePackageVersion = "0.6.0"
 const nativeABIVersion = 2
