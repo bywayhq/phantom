@@ -97,7 +97,7 @@ class SyncLogicalSourceTests(unittest.TestCase):
                     for owner in (fork, restored):
                         with owner.event_source(url, protocol="h1") as source:
                             self.assertEqual(next(source).data, "ready")
-            self.assertEqual(seen, [url, url])
+            self.assertEqual(seen, [url + "/", url + "/"])
             self.assertEqual(len(peer.records), 2)
 
 
@@ -327,7 +327,10 @@ class AsyncLogicalSourceTests(unittest.IsolatedAsyncioTestCase):
                 finally:
                     release.set()
                     await sibling.aclose()
-        self.assertFalse(peer.premature_close)
+        self.assertEqual(
+            [path for _, path in peer.requests],
+            [b"/stall", b"/events", b"/events", b"/second"],
+        )
 
     async def test_close_waits_for_response_callback_cleanup_and_retains_late_failure(
         self,
