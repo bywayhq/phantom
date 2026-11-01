@@ -194,11 +194,17 @@ impl Global {
         let ticket = {
             let mut state = self.lock();
             if state.failed
-                || !state
-                    .operations
-                    .get(&operation)
-                    .is_some_and(|op| !op.abandoned && !op.finished)
+                || !state.operations.get(&operation).is_some_and(|op| {
+                    !op.abandoned
+                        && !op.finished
+                        && !op
+                            .callback_call
+                            .as_ref()
+                            .is_some_and(|call| call.host_owned)
+                })
             {
+                // A timed-out phase can leave host code running while the core
+                // starts its error phase. Only actual host handback frees its slot.
                 return Err(failure());
             }
             let ticket = state.id().map_err(|_| failure())?;

@@ -142,3 +142,73 @@ fn cancelled_logical_callback_retains_actual_host_custody() -> Result<(), Failur
         Ok(())
     })
 }
+
+#[test]
+fn error_phase_cannot_replace_a_cancelled_callback_before_host_handback() -> Result<(), Failure> {
+    let global = test_global()?;
+    let config = serde_json::from_value(
+        json!({"profile":"chrome-154-windows","protocol":"h1","cookies":false}),
+    )
+    .map_err(|_| Failure::new("test_config"))?;
+    let entry = NativeClient::new(config)?;
+    let native = entry.client.clone();
+    global.lock().clients.insert(1, entry);
+    let operation = global.lock().reserve(Target::Request(1))?.0;
+
+    global.runtime.block_on(async {
+        let invocation = |phase, error| super::super::logical_hooks::Invocation {
+            phase,
+            cause_operation: 0,
+            method: "GET".into(),
+            uri: "http://127.0.0.1/".into(),
+            response: None,
+            error,
+        };
+        let mut context = std::task::Context::from_waker(std::task::Waker::noop());
+        let mut request = Box::pin(global.logical_hook(operation, invocation(1, None)));
+        assert!(request.as_mut().poll(&mut context).is_pending());
+        let ticket = match global.wait()?.result? {
+            Completed::LogicalHook(ticket) => ticket,
+            _ => return Err(Failure::new("test_missing_callback")),
+        };
+
+        // Drop the native wait, while the delivered host callback still owes a reply.
+        drop(request);
+        let mut error =
+            Box::pin(global.logical_hook(operation, invocation(4, Some(Failure::new("timeout")))));
+        assert!(matches!(
+            error.as_mut().poll(&mut context),
+            std::task::Poll::Ready(Err(_))
+        ));
+        drop(error);
+        {
+            let state = global.lock();
+            let call = state
+                .operations
+                .get(&operation)
+                .and_then(|operation| operation.callback_call.as_ref())
+                .ok_or_else(|| Failure::new("test_missing_callback"))?;
+            assert_eq!(call.ticket, ticket);
+            assert!(call.host_owned);
+            assert!(call.reply.is_none());
+            assert!(state.ready.is_empty());
+        }
+
+        global.finish(operation, Err(Failure::new("timeout")));
+        assert!(matches!(
+            global.wait()?.result,
+            Err(Failure {
+                kind: "timeout",
+                ..
+            })
+        ));
+        let mut shutdown = Box::pin(global.shutdown(1, native));
+        assert!(shutdown.as_mut().poll(&mut context).is_pending());
+
+        global.reply_callback(operation, ticket, 2, CallbackReply::Logical)?;
+        tokio::time::timeout(std::time::Duration::from_secs(5), shutdown)
+            .await
+            .map_err(|_| Failure::new("test_shutdown_stalled"))??;
+        Ok(())
+    })
+}
