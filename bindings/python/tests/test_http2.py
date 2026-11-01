@@ -204,7 +204,9 @@ class H2Peer:
                             self.reset_code = event.error_code
                             self.reset_stream = event.stream_id
                             self.reset.set()
-                            if healthy is not None:
+                            if healthy == event.stream_id:
+                                healthy = None
+                            elif healthy is not None:
                                 connection.send_data(
                                     healthy, b"hello", end_stream=self.trailers is None
                                 )
@@ -212,6 +214,7 @@ class H2Peer:
                                     connection.send_headers(
                                         healthy, self.trailers, end_stream=True
                                     )
+                                healthy = None
                         elif isinstance(event, h2.events.ConnectionTerminated):
                             self.premature_close = len(self.requests) != (
                                 4 if self.websocket else 3

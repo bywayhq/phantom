@@ -193,9 +193,10 @@ class LogicalRequestHookTests(unittest.IsolatedAsyncioTestCase):
     ):
         entered, cleaning, release = (asyncio.Event() for _ in range(3))
         terminal = []
+        original = ValueError("request")
 
         def fail(_):
-            raise ValueError("request")
+            raise original
 
         async def error(_):
             entered.set()
@@ -227,6 +228,11 @@ class LogicalRequestHookTests(unittest.IsolatedAsyncioTestCase):
                     await sending
                 self.assertEqual(terminal, ["cleaned"])
                 self.assertEqual(peer.records, [])
+                with self.assertRaises(Error) as caught:
+                    await client.close()
+                self.assertEqual(caught.exception.kind, "request_hook_cleanup")
+                self.assertIs(caught.exception.original, original)
+                self.assertIsNone(caught.exception.hook_error)
                 await client.close()
             finally:
                 release.set()
