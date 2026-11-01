@@ -66,7 +66,7 @@ libc = "0.2.189"
 windows-sys = { version = "0.61.2", features = ["Wdk_System_SystemServices", "Win32_Foundation", "Win32_NetworkManagement_Dns", "Win32_NetworkManagement_IpHelper", "Win32_NetworkManagement_Ndis", "Win32_Networking_WinSock", "Win32_Security", "Win32_System_Environment", "Win32_System_Registry", "Win32_System_SystemInformation", "Win32_System_Threading"] }
 
 [build-dependencies]
-cc = "=1.9.0"
+cc = "=1.10.0"
 
 [dev-dependencies]
 criterion = { version = "=0.8.2", default-features = false, features = ["async_tokio", "cargo_bench_support"] }
