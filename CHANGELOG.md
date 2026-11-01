@@ -9,6 +9,8 @@
 
 - Node adds awaited, ordered HTTP header hooks with request cancellation and
   original JavaScript errors.
+- Python awaits ordered client and per-request header hooks during ordinary HTTP
+  preparation, preserving callback exceptions and cancellation ownership.
 - Save and load encrypted session checkpoints through caller-owned Python,
   Go and Node storage backends with bounded reads and operation deadlines.
 - Python, Go and Node can override the route for each WebSocket opening while

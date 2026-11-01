@@ -30,6 +30,7 @@ class InstalledTypingTests(unittest.TestCase):
             "_client.py",
             "_convenience.py",
             "_errors.py",
+            "_header_hooks.py",
             "_dns.py",
             "_profile.py",
             "_request.py",
@@ -159,7 +160,21 @@ class SignatureTests(unittest.TestCase):
                 )
 
     def test_sync_options_and_defaults_match_async_signatures(self):
-        self.assertEqual(inspect.signature(Client), inspect.signature(AsyncClient))
+        # Callback return types differ: only AsyncClient accepts awaitables.
+        constructors = [inspect.signature(owner) for owner in (Client, AsyncClient)]
+        self.assertEqual(
+            *(
+                signature.replace(
+                    parameters=[
+                        parameter.replace(annotation=inspect.Signature.empty)
+                        if parameter.name == "header_hooks"
+                        else parameter
+                        for parameter in signature.parameters.values()
+                    ]
+                )
+                for signature in constructors
+            )
+        )
         self.assertIs(
             inspect.signature(Client.fork).parameters["sharing"].default,
             inspect.signature(AsyncClient.fork).parameters["sharing"].default,
@@ -170,7 +185,7 @@ class SignatureTests(unittest.TestCase):
             sync.replace(
                 parameters=[
                     parameter.replace(annotation=inspect.Signature.empty)
-                    if parameter.name == "body"
+                    if parameter.name in ("body", "header_hooks")
                     else parameter
                     for parameter in sync.parameters.values()
                 ],
@@ -179,7 +194,7 @@ class SignatureTests(unittest.TestCase):
             asynchronous.replace(
                 parameters=[
                     parameter.replace(annotation=inspect.Signature.empty)
-                    if parameter.name == "body"
+                    if parameter.name in ("body", "header_hooks")
                     else parameter
                     for parameter in asynchronous.parameters.values()
                 ],
@@ -236,6 +251,7 @@ class SignatureTests(unittest.TestCase):
                     "client_certificates_for": (),
                     "network": None,
                     "pool": None,
+                    "header_hooks": (),
                 }
                 inputs = {
                     "profile": "exact-profile",
@@ -251,6 +267,7 @@ class SignatureTests(unittest.TestCase):
                     "retry_policy": None,
                     "client_certificate": object(),
                     "client_certificates_for": (("https://origin.invalid", object()),),
+                    "header_hooks": (lambda context: None,),
                     "pool": phantom_http.PoolOptions(
                         max_http2_connections_per_origin=2
                     ),
@@ -263,6 +280,7 @@ class SignatureTests(unittest.TestCase):
                 request = {
                     "context": "fetch",
                     "headers": fields,
+                    "header_hooks": (lambda context: None,),
                     "trailers": (),
                     "expect_continue_ms": None,
                     "body": b"bytes",
@@ -312,6 +330,7 @@ class SignatureTests(unittest.TestCase):
                             else {
                                 "context": None,
                                 "headers": (),
+                                "header_hooks": (),
                                 "trailers": (),
                                 "expect_continue_ms": None,
                                 "body": None,

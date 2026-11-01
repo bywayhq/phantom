@@ -9,6 +9,7 @@ mod diagnostics;
 mod dns;
 mod error;
 mod event_source;
+mod header_hook;
 mod lifecycle;
 mod network;
 mod pool;
@@ -36,6 +37,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<event_source::NativeEventSource>()?;
     module.add_class::<websocket::NativeWebSocket>()?;
     module.add_class::<upload::NativeUpload>()?;
+    module.add_class::<header_hook::NativeHeaderHooks>()?;
     module.add_class::<streaming_multipart::NativeStreamingMultipart>()?;
     module.add_class::<profile::NativeProfile>()?;
     module.add_class::<prepared_body::NativePreparedBody>()?;

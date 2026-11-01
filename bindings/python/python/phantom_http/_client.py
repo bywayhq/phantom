@@ -16,7 +16,7 @@ from typing import (
 
 from typing_extensions import Unpack
 
-from . import _multipart, _native, _storage, _upload
+from . import _header_hooks, _multipart, _native, _storage, _upload
 from ._bodies import PreparedBody, StreamingMultipartBody
 from ._certificates import ClientCertificate
 from ._configuration import (
@@ -100,6 +100,7 @@ class _RequestFields(TypedDict, total=False):
     transfer_control: _native.NativeTransferControl
     trailers: list[tuple[str, bytes, bool]]
     expect_continue_ms: int
+    header_hooks: _native.NativeHeaderHooks
 
 
 class _ClientFields(TypedDict, total=False):
@@ -153,7 +154,7 @@ def _certificates(
 
 
 class AsyncClient:
-    """Reuse connections and cookies across requests."""
+    """Reuse connections and cookies; header_hooks apply to ordinary HTTP sends."""
 
     def __init__(
         self,
@@ -173,7 +174,10 @@ class AsyncClient:
         client_certificates_for: tuple[tuple[str, ClientCertificate], ...] = (),
         network: NetworkOptions | None = None,
         pool: PoolOptions | None = None,
+        header_hooks: Iterable[_header_hooks.AsyncHeaderHook] = (),
     ) -> None:
+        self._header_hooks = _header_hooks._snapshot(header_hooks)
+        self._header_pumps: set[_header_hooks.Hooks] = set()
         if pool is not None and type(pool) is not PoolOptions:
             raise TypeError("pool must be PoolOptions")
         if pool is not None:
@@ -240,12 +244,24 @@ class AsyncClient:
     def is_closed(self) -> bool:
         return self._native.is_closed
 
+    def _settle_header_hooks(self, hooks: _header_hooks.Hooks) -> None:
+        # A callback may fail after a cancelled send's bounded cleanup wait.
+        # Retain that failure until the request or a later close observes it.
+        if hooks.cleanup_error is None:
+            self._header_pumps.discard(hooks)
+
     @classmethod
-    def _from_native(cls, native: _native.NativeClient) -> AsyncClient:
+    def _from_native(
+        cls,
+        native: _native.NativeClient,
+        header_hooks: tuple[_header_hooks.AsyncHeaderHook, ...] = (),
+    ) -> AsyncClient:
         client = object.__new__(cls)
         client._native = native
         client.cookies = Cookies(native.cookies)
         client._uploads = set()
+        client._header_hooks = header_hooks
+        client._header_pumps = set()
         return client
 
     def event_source(
@@ -293,7 +309,8 @@ class AsyncClient:
                 sharing.client_hints,
                 sharing.discovery,
                 sharing.tickets,
-            )
+            ),
+            self._header_hooks,
         )
 
     async def export_session(self, key: bytes) -> bytes:
@@ -317,7 +334,7 @@ class AsyncClient:
             _checkpoint_bytes(key),
             _receiving_routes(receiving_routes),
         )
-        return AsyncClient._from_native(native)
+        return AsyncClient._from_native(native, self._header_hooks)
 
     async def save_session(
         self,
@@ -449,6 +466,7 @@ class AsyncClient:
         form: _Form | None = None,
         maximum_body_bytes: int = _DEFAULT_BODY_LIMIT,
         headers: _Headers = (),
+        header_hooks: Iterable[_header_hooks.AsyncHeaderHook] = (),
         trailers: _Headers = (),
         expect_continue_ms: int | None = None,
         body: bytes
@@ -483,6 +501,7 @@ class AsyncClient:
             form=form,
             maximum_body_bytes=maximum_body_bytes,
             headers=headers,
+            header_hooks=header_hooks,
             trailers=trailers,
             expect_continue_ms=expect_continue_ms,
             body=body,
@@ -510,6 +529,7 @@ class AsyncClient:
         form: _Form | None = None,
         maximum_body_bytes: int = _DEFAULT_BODY_LIMIT,
         headers: _Headers = (),
+        header_hooks: Iterable[_header_hooks.AsyncHeaderHook] = (),
         trailers: _Headers = (),
         expect_continue_ms: int | None = None,
         body: bytes
@@ -537,6 +557,7 @@ class AsyncClient:
         """
         multipart = body if isinstance(body, StreamingMultipartBody) else None
         pump: _upload.Upload | None = None
+        hooks: _header_hooks.Hooks | None = None
         if multipart is not None:
             multipart_pump = multipart._claim(not _synchronous)
             pump = multipart_pump
@@ -615,6 +636,17 @@ class AsyncClient:
                         lambda _: self._uploads.discard(pump)
                     )
             native_fields: _RequestFields = {}
+            callbacks = self._header_hooks + _header_hooks._snapshot(header_hooks)
+            if len(callbacks) > 256:
+                raise ValueError("header hooks exceed 256 callbacks")
+            if callbacks:
+                hook_pump = _header_hooks.Hooks(callbacks, _synchronous)
+                hooks = hook_pump
+                self._header_pumps.add(hook_pump)
+                hook_pump.settled.add_done_callback(
+                    lambda _: self._settle_header_hooks(hook_pump)
+                )
+                native_fields["header_hooks"] = hooks.native
             if context is not None:
                 native_fields["context"] = context
             if diagnostics is not None:
@@ -661,14 +693,29 @@ class AsyncClient:
             )
             return AsyncResponse(native, pump)
         except BaseException as error:
-            if pump is not None:
+            if hooks is not None or pump is not None:
                 try:
-                    pump.close()
-                    if not await pump.wait():
+                    settled = set()
+                    if hooks is not None:
+                        hooks.close()
+                        settled.add(hooks.settled)
+                    if pump is not None:
+                        pump.close()
+                        settled.add(pump.settled)
+                    _, pending = await asyncio.wait(settled, timeout=5)
+                    if pending:
                         raise TimeoutError("request", "shutdown_timeout")
                 except BaseException as cleanup:
                     raise _primary_error(error, pump, cleanup) from None
-            raise _primary_error(error, pump) from None
+            hook_cleanup = None if hooks is None else hooks.cleanup_error
+            primary = _primary_error(error, pump, hook_cleanup)
+            if (
+                hooks is not None
+                and hook_cleanup is not None
+                and isinstance(primary, Error)
+            ):
+                self._header_pumps.discard(hooks)
+            raise primary from None
 
     async def close_idle_connections(self) -> None:
         """Release idle connections, retaining active bodies and session state."""
@@ -708,6 +755,9 @@ class AsyncClient:
         """
         _shutdown_timeout(timeout_ms)
         started = asyncio.get_running_loop().time()
+        hooks = tuple(self._header_pumps)
+        for hook in hooks:
+            hook.check_wait()
         pumps = tuple(self._uploads)
         for pump in pumps:
             pump.check_wait()
@@ -715,15 +765,22 @@ class AsyncClient:
             await self._native.shutdown(timeout_ms)
         except _native.NativeError as error:
             raise _error(error) from None
-        if pumps:
+        if pumps or hooks:
             remaining = max(
                 0.0, timeout_ms / 1000 - (asyncio.get_running_loop().time() - started)
             )
             _, pending = await asyncio.wait(
-                {pump.settled for pump in pumps}, timeout=remaining
+                {pump.settled for pump in pumps} | {hook.settled for hook in hooks},
+                timeout=remaining,
             )
             if pending:
                 raise TimeoutError("request", "shutdown_timeout")
+            for hook in hooks:
+                if hook.cleanup_error is not None:
+                    self._header_pumps.discard(hook)
+                    failure = Error("request", "header_hook_cleanup")
+                    failure.original = hook.cleanup_error
+                    raise failure from None
             for pump in pumps:
                 if pump.error is not None or pump.cleanup_error is not None:
                     raise _upload_error(pump) from None
@@ -735,10 +792,15 @@ class AsyncClient:
         its finalizer can finish. Forked clients remain independent.
         """
         _shutdown_timeout(timeout_ms)
+        hooks = tuple(self._header_pumps)
+        for hook in hooks:
+            hook.check_wait()
         pumps = tuple(self._uploads)
         for pump in pumps:
             pump.check_wait()
         _call(self._native.abort)
+        for hook in hooks:
+            hook.close()
         for pump in pumps:
             pump.close()
         await self.close(timeout_ms=timeout_ms)

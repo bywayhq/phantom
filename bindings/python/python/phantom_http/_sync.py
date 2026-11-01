@@ -15,7 +15,7 @@ from collections.abc import (
 
 from typing_extensions import Unpack
 
-from . import _storage, _upload
+from . import _header_hooks, _storage, _upload
 from ._bodies import PreparedBody, StreamingMultipartBody
 from ._certificates import ClientCertificate
 from ._client import AsyncClient
@@ -183,7 +183,10 @@ class Response:
 
 
 class Client:
-    """Synchronous client. Use from its creating thread outside a running event loop."""
+    """Synchronous client with ordinary HTTP header hooks.
+
+    Use from its creating thread outside a running event loop.
+    """
 
     def __init__(
         self,
@@ -203,6 +206,7 @@ class Client:
         client_certificates_for: tuple[tuple[str, ClientCertificate], ...] = (),
         network: NetworkOptions | None = None,
         pool: PoolOptions | None = None,
+        header_hooks: Iterable[_header_hooks.HeaderHook] = (),
     ) -> None:
         # Keep the public constructor seam used by applications and test doubles.
         from . import AsyncClient
@@ -225,6 +229,7 @@ class Client:
             client_certificates_for=client_certificates_for,
             network=network,
             pool=pool,
+            header_hooks=header_hooks,
         )
         self._loop = asyncio.new_event_loop()
         self.cookies = self._async.cookies
@@ -337,7 +342,7 @@ class Client:
         client._thread = threading.get_ident()
         client._loop = asyncio.new_event_loop()
         try:
-            client._async = AsyncClient._from_native(native)
+            client._async = AsyncClient._from_native(native, self._async._header_hooks)
             client.cookies = client._async.cookies
         except BaseException:
             client._loop.close()
@@ -460,6 +465,7 @@ class Client:
         form: _Form | None = None,
         maximum_body_bytes: int = _DEFAULT_BODY_LIMIT,
         headers: _Headers = (),
+        header_hooks: Iterable[_header_hooks.HeaderHook] = (),
         trailers: _Headers = (),
         expect_continue_ms: int | None = None,
         body: bytes
@@ -504,6 +510,7 @@ class Client:
                     form=form,
                     maximum_body_bytes=maximum_body_bytes,
                     headers=headers,
+                    header_hooks=header_hooks,
                     trailers=trailers,
                     expect_continue_ms=expect_continue_ms,
                     body=source,

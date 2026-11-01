@@ -49,6 +49,9 @@ from ._errors import _upload_error as _upload_error
 from ._event_source import AsyncEventSource as AsyncEventSource
 from ._event_source import EventSource as EventSource
 from ._event_source import LastEventId as LastEventId
+from ._header_hooks import AsyncHeaderHook as AsyncHeaderHook
+from ._header_hooks import HeaderHook as HeaderHook
+from ._header_hooks import HeaderHookContext as HeaderHookContext
 from ._network import HostOverride as HostOverride
 from ._network import NetworkOptions as NetworkOptions
 from ._pool import PoolOptions as PoolOptions
@@ -127,6 +130,7 @@ for _public_type in (
     Response,
     AsyncClient,
     Client,
+    HeaderHookContext,
     WebSocket,
     AsyncWebSocket,
     WebSocketClose,

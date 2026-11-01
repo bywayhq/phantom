@@ -65,6 +65,53 @@ To install a source archive, run `pip install ./phantom_http-VERSION.tar.gz`.
 It needs the same native tools and pins Rust 1.99.1 in `rust-toolchain.toml`.
 If you override that compiler, recheck the build and runtime licenses.
 
+## Ordered header hooks
+
+Pass `header_hooks=(callback, ...)` to a client or an ordinary HTTP request
+(`request`, `get`, `post` and the other method helpers). Client callbacks run
+first, followed by request callbacks. Each sees the preceding callback's changes:
+
+```python
+from phantom_http import Header, HeaderHookContext
+
+
+def authorize(context: HeaderHookContext) -> None:
+    if context.url.startswith("https://example.com/"):
+        context.set(Header("Authorization", b"Bearer token", sensitive=True))
+    context.append(("X-Job", "capture"))
+
+
+with Client(profile=PROFILE, header_hooks=(authorize,)) as client:
+    with client.get("https://example.com/") as response:
+        response.read(max_bytes=1_000_000)
+```
+
+`context.method`, `context.url` and the ordered immutable `context.headers`
+snapshot describe the initial request. `append`, `set` and `remove` preserve
+ordered duplicates; `set` replaces the first match and removes later matches.
+Names match ignoring ASCII case. Header values accept bytes, including existing
+`Header` sensitivity marks. Resulting fields and each callback's edits are bounded
+to 256 entries and 65536 bytes, including request trailers in the field limit.
+
+`AsyncClient` callbacks can return `None` or await asynchronous work on the
+sending task's loop and context. `Client` callbacks must be synchronous and run
+on its private loop; they must not re-enter that synchronous client. Hooks run
+inside core preparation after prepared-body headers, before generated cookies,
+templates and network I/O. They run once per send, including retries and
+redirects. Cross-origin redirects still strip credential headers according to
+`RedirectPolicy`; a sensitive mark alone does not identify a credential.
+Client defaults survive forks and restored sessions; callbacks are not serialized
+into encrypted snapshots. EventSource and WebSocket openings do not use these
+Python hooks yet.
+
+Pending hooks share the request's total timeout. Cancellation and abort cancel
+the callback task and invalidate its context; later edits cannot reach a send.
+Callbacks must cooperate with cancellation. Cleanup that exceeds the bounded
+shutdown wait remains owned; call `abort` again after it can finish. Blocking
+callback code cannot be preempted. Hook failures raise a redacted `Error` with
+`kind="header_hook"`; its `original` attribute retains the original exception
+and traceback, including a callback's own `CancelledError`.
+
 ## Streaming and lifetime
 
 `AsyncClient` has the same options as `Client`. Use it inside an async event
