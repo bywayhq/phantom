@@ -1216,7 +1216,14 @@ impl RequestBuilder {
                 return Err(error);
             }
             Err(error) => Err(error),
-            Ok(()) => self.send_inner(span, Some(budget), Some(&activity)).await,
+            Ok(()) => {
+                crate::session::box_send_unscoped(self.send_inner(
+                    span,
+                    Some(budget),
+                    Some(&activity),
+                ))
+                .await
+            }
         }
         .map_err(|error| error.with_origin(origin.clone()));
         let mut result = hooks
