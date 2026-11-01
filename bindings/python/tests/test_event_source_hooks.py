@@ -300,9 +300,8 @@ class AsyncSourceHookTests(unittest.IsolatedAsyncioTestCase):
                             await asyncio.gather(reading, return_exceptions=True)
                     async with await client.get(peer.url + "/second") as response:
                         self.assertEqual(await response.read(max_bytes=5), b"hello")
-                    self.assertEqual(await sibling.__anext__(), b"tail")
-                    with self.assertRaises(StopAsyncIteration):
-                        await sibling.__anext__()
+                    self.assertEqual(await sibling.read(max_bytes=16), b"tail")
+                    self.assertIsNone(await sibling.read_chunk())
                 finally:
                     release.set()
                     await sibling.aclose()
