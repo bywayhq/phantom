@@ -15,15 +15,15 @@ capture requirements.
 For the same capture on an approved disposable Mac:
 
 ```sh
-python3.10 -m scripts.capture.safari_webdriver \
+python3.12 -m scripts.capture.safari_webdriver \
   --output-dir target/safari-capture
 ```
 
 HTTP remains the default. For the separate TLS/H2 attempt:
 
 ```sh
-python3.10 -m pip install --require-hashes -r scripts/requirements.txt
-python3.10 -m scripts.capture.safari_webdriver --protocol h2 \
+python3.12 -m pip install --require-hashes -r scripts/requirements.txt
+python3.12 -m scripts.capture.safari_webdriver --protocol h2 \
   --output-dir target/safari-h2-capture
 ```
 
