@@ -382,8 +382,9 @@ Backends receive encrypted bytes, never keys. For example, on a sync client:
 
 ```python
 client.save_session(store, "job/session", key, timeout=5)
-restored = client.load_session(store, "job/session", key, timeout=5,
-                               receiving_routes=(None,))
+restored = client.load_session(
+    store, "job/session", key, timeout=5, receiving_routes=(None,)
+)
 ```
 
 Await these methods on `AsyncClient`. `None` means absence; backend failures
