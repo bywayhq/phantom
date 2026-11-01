@@ -291,7 +291,12 @@ class NodeArtifactTests(unittest.TestCase):
             "workerData: {module: require.resolve('@byway/phantom')", websocket
         )
         self.assertNotIn("path.resolve(__dirname, '..')", websocket)
-        for name in ("events-facade", "websocket-facade", "header-hooks-facade"):
+        for name in (
+            "events-facade",
+            "websocket-facade",
+            "header-hooks-facade",
+            "event-source-hooks-facade",
+        ):
             copied = (destination / f"{name}.test.cjs").read_text()
             self.assertIn("require.resolve('@byway/phantom')", copied)
             self.assertNotIn("path.resolve(__dirname, '../index.cjs')", copied)
@@ -395,6 +400,7 @@ class NodeArtifactTests(unittest.TestCase):
             "event-source",
             "event-source-http3",
             "event-source-facade",
+            "event-source-hooks-facade",
             "websocket",
             "websocket-http3",
             "websocket-facade",

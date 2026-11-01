@@ -268,6 +268,13 @@ def copied_tests(destination, native_package=None):
                 1,
             ),
         ),
+        "event-source-hooks-facade.test.cjs": (
+            (
+                "path.resolve(__dirname, '../index.cjs')",
+                "require.resolve('@byway/phantom')",
+                1,
+            ),
+        ),
         "events.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
         "events-facade.test.cjs": (
             (
@@ -575,6 +582,7 @@ def public_checks(
                 "tests/event-source.test.cjs",
                 "tests/event-source-http3.test.cjs",
                 "tests/event-source-facade.test.cjs",
+                "tests/event-source-hooks-facade.test.cjs",
                 "tests/events.test.cjs",
                 "tests/events-facade.test.cjs",
                 "tests/websocket.test.cjs",

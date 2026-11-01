@@ -13,8 +13,9 @@
 
 ### Bindings
 
-- Python EventSource inherits client and per-source header hooks on each GET,
+- Python, Go and Node EventSource inherit client and per-source header hooks on each GET,
   with managed event IDs and callback cleanup during reconnect and shutdown.
+- Go adds EventSource `CloseContext`; Node adds `closeAsync` and cancellable reads.
 - Node and Go add awaited redirect callbacks with typed hop metadata, request
   overrides and the existing deadline, credential and attempt-budget rules.
 - Python adds synchronous and asynchronous redirect callbacks with named hop
