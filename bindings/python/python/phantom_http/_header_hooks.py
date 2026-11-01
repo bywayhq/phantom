@@ -196,6 +196,7 @@ class Hooks:
         if not self.closing:
             self.closing = True
             if not self.task.done() and not self.active_cancelled:
+                self.active_cancelled = True
                 self.task.cancel()
 
     def pending_failure(self) -> Error | None:

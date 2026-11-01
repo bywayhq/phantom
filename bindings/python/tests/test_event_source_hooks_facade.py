@@ -94,6 +94,56 @@ class SourceHookTests(unittest.IsolatedAsyncioTestCase):
         native.start()
         self.addCleanup(native.stop)
 
+    async def test_close_does_not_cancel_callback_cleanup_again_for_queued_notice(self):
+        entered, cleaning, release, exited = (asyncio.Event() for _ in range(4))
+        notification, queued, deliver = (asyncio.Event() for _ in range(3))
+        original = RuntimeError("late callback cleanup")
+
+        async def callback(_):
+            entered.set()
+            try:
+                await asyncio.Future()
+            finally:
+                cleaning.set()
+                await release.wait()
+                exited.set()
+                raise original
+
+        hooks = hooks_module.Hooks((callback,), False, source=True)
+
+        async def next_cancelled(after):
+            if after:
+                return None
+            await notification.wait()
+            queued.set()
+            await deliver.wait()
+            return 1
+
+        hooks.native.next_cancelled = next_cancelled
+        first = hooks.native.begin()
+        try:
+            await asyncio.wait_for(entered.wait(), 1)
+            notification.set()
+            await asyncio.wait_for(queued.wait(), 1)
+            hooks.close()
+            await asyncio.wait_for(cleaning.wait(), 1)
+            deliver.set()
+            self.assertFalse(await hooks.wait(timeout_ms=20))
+            self.assertFalse(exited.is_set())
+            hooks.close()
+            self.assertFalse(await hooks.wait(timeout_ms=20))
+            release.set()
+            self.assertTrue(await hooks.wait())
+            self.assertTrue(exited.is_set())
+            self.assertIs(hooks.cleanup_error, original)
+        finally:
+            release.set()
+            deliver.set()
+            hooks.close()
+            self.assertTrue(await hooks.wait())
+            with self.assertRaises(asyncio.CancelledError):
+                await first
+
     async def test_timed_out_get_waits_for_cleanup_then_reuses_the_same_owner(self):
         entered, cleaning, release = (asyncio.Event() for _ in range(3))
         calls = []
