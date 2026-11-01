@@ -80,12 +80,17 @@ test('WebSocket opening routes select direct and authenticated proxies without c
   const target = await listen(t, server);
   t.after(() => {for (const socket of websocket.clients) socket.terminate(); websocket.close();});
 
+  const authorization = `Basic ${Buffer.from('user:private').toString('base64')}`;
   const proxy = async () => {
     const connects = [], ordinary = [], upstreams = new Set();
     const server = http.createServer((request, response) => {ordinary.push(request.url); response.writeHead(502).end();});
     server.on('connect', (request, socket, head) => {
-      connects.push({authority: request.url, authorization: request.headers['proxy-authorization']});
-      if (request.url !== `127.0.0.1:${target}`) return socket.destroy();
+      const status = request.url !== `127.0.0.1:${target}` ? 403
+        : request.headers['proxy-authorization'] === authorization ? 200 : 407;
+      connects.push({authority: request.url, authorization: request.headers['proxy-authorization'], status});
+      socket.on('error', () => {});
+      if (status === 403) return socket.end('HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n');
+      if (status === 407) return socket.end('HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: Basic realm="loopback"\r\nContent-Length: 0\r\nConnection: close\r\n\r\n');
       const upstream = net.connect({host: '127.0.0.1', port: target}, () => {
         socket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
         if (head.length !== 0) upstream.write(head);
@@ -114,18 +119,21 @@ test('WebSocket opening routes select direct and authenticated proxies without c
     } finally {socket.abort();}
   };
   await open(inherited, 'inherited');
-  assert.equal(first.connects.length, 1);
-  await open(inherited, 'direct', {route: 'direct'});
-  assert.equal(first.connects.length, 1);
-  await open(inherited, 'override', {route: 'proxy', proxy: second.proxy, ...credentials});
-  assert.equal(second.connects.length, 1);
-  await open(inherited, 'inherited-again');
   assert.equal(first.connects.length, 2);
+  await open(inherited, 'direct', {route: 'direct'});
+  assert.equal(first.connects.length, 2);
+  await open(inherited, 'override', {route: 'proxy', proxy: second.proxy, ...credentials});
+  assert.equal(second.connects.length, 2);
+  await open(inherited, 'inherited-again');
+  assert.equal(first.connects.length, 3);
   await open(direct, 'direct-default');
   await open(direct, 'direct-to-proxy', {route: 'proxy', proxy: second.proxy, ...credentials});
-  assert.equal(second.connects.length, 2);
-  const authorization = `Basic ${Buffer.from('user:private').toString('base64')}`;
-  assert(first.connects.concat(second.connects).every((opening) => opening.authorization === authorization));
+  const exchange = [
+    {authority: `127.0.0.1:${target}`, authorization: undefined, status: 407},
+    {authority: `127.0.0.1:${target}`, authorization, status: 200},
+  ];
+  assert.deepEqual(first.connects, [...exchange, exchange[1]]);
+  assert.deepEqual(second.connects, [...exchange, ...exchange]);
   assert.deepEqual(first.ordinary.concat(second.ordinary), []);
   assert.deepEqual(openings.map((opening) => opening.path), ['/inherited', '/direct', '/override', '/inherited-again', '/direct-default', '/direct-to-proxy']);
   assert(openings.every((opening) => opening.authorization === undefined));
@@ -140,8 +148,8 @@ test('WebSocket opening routes select direct and authenticated proxies without c
     });
   }
   assert.equal(openings.length, 6);
-  assert.equal(first.connects.length, 2);
-  assert.equal(second.connects.length, 2);
+  assert.equal(first.connects.length, 3);
+  assert.equal(second.connects.length, 4);
 });
 
 test('WebSocket assembles fragments, flushes automatic pong, and sends explicit controls', async (t) => {
