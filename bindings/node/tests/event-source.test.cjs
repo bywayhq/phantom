@@ -398,7 +398,7 @@ test('EventSource hooks run once across an HTTP2 redirect and leave the connecti
   });
   t.after(() => { for (const session of sessions) session.destroy(); });
   const url = await listen(t, server);
-  const client = new Client({profile, route: 'direct', protocol: 'http2', context: 'raw', headerHooks: [context => {
+  const client = new Client({profile, route: 'direct', protocol: 'http2', context: 'raw', redirectPolicy: {mode: 'limited', maximumHops: 1}, headerHooks: [context => {
     calls.push('client'); context.append({name: 'x-client', value: Buffer.from('first')});
   }]});
   t.after(() => client.destroy());
