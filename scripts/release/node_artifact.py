@@ -218,6 +218,7 @@ def copied_tests(destination, native_package=None):
         ),
         "session-snapshots.test.cjs": (
             ("require('..')", "require('@byway/phantom')", 1),
+            ("require('ws')", "require('../compiler/node_modules/ws')", 1),
         ),
         "transfer.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
         "transfer-http2.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),

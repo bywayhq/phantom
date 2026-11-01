@@ -219,6 +219,10 @@ class NodeArtifactTests(unittest.TestCase):
         certificates = (destination / "client-certificates.test.cjs").read_text()
         self.assertNotIn("import('../index.mjs')", certificates)
         self.assertIn("import('@byway/phantom')", certificates)
+        for name in ("session-snapshots.test.cjs", "websocket.test.cjs"):
+            copied = (destination / name).read_text()
+            self.assertNotIn("require('ws')", copied)
+            self.assertIn("require('../compiler/node_modules/ws')", copied)
         for name in ("types.cts", "types.mts"):
             copied = (destination / name).read_text()
             self.assertIn("from '@byway/phantom'", copied)
