@@ -273,6 +273,48 @@ class NodeArtifactTests(unittest.TestCase):
         ):
             artifact.copied_tests(self.directory / "copied")
 
+    def test_stream_and_hook_peers_resolve_installed_package_and_locked_ws(self):
+        destination = self.directory / "tests"
+        artifact.copied_tests(destination)
+        for name in ("events", "websocket", "websocket-http3", "header-hooks"):
+            copied = (destination / f"{name}.test.cjs").read_text()
+            self.assertIn("require('@byway/phantom')", copied)
+            self.assertNotIn("require('..')", copied)
+        websocket = (destination / "websocket.test.cjs").read_text()
+        self.assertNotIn("require('ws')", websocket)
+        self.assertIn("require('../compiler/node_modules/ws')", websocket)
+        self.assertIn(
+            "workerData: {module: require.resolve('@byway/phantom')", websocket
+        )
+        self.assertNotIn("path.resolve(__dirname, '..')", websocket)
+        for name in ("events-facade", "websocket-facade", "header-hooks-facade"):
+            copied = (destination / f"{name}.test.cjs").read_text()
+            self.assertIn("require.resolve('@byway/phantom')", copied)
+            self.assertNotIn("path.resolve(__dirname, '../index.cjs')", copied)
+
+    def test_public_checks_reject_checkout_resolution_before_dev_installation(self):
+        calls = []
+
+        def run(args, **options):
+            calls.append(args)
+            return json.dumps(
+                {"entry": str(artifact.ROOT / "bindings/node/index.cjs")}
+            ).encode()
+
+        with self.assertRaisesRegex(ValueError, "outside the clean consumer"):
+            artifact.public_checks(
+                self.directory,
+                Path("node"),
+                Path("npm-cli.js"),
+                "0.6.0",
+                SimpleNamespace(run=run),
+                self.tools,
+                {},
+                self.directory / "cache",
+            )
+        self.assertEqual(len(calls), 1)
+        self.assertFalse((self.directory / "compiler").exists())
+
     def test_shared_public_checks_keep_installed_native_and_types_controls(self):
         consumer = self.directory / "consumer"
         consumer.mkdir()
@@ -286,7 +328,12 @@ class NodeArtifactTests(unittest.TestCase):
                 return json.dumps(
                     {"entry": str(package / "index.cjs"), "version": "0.2.0"}
                 ).encode()
-            return successful_tap() if "--test" in args else b""
+            if "--test" in args:
+                self.assertTrue(
+                    any(call[:3] == ["node", "npm-cli.js", "ci"] for call, _ in calls)
+                )
+                return successful_tap()
+            return b""
 
         with patch.object(
             artifact, "h3_peer_environment", side_effect=lambda _r, _d, env: env
@@ -339,6 +386,16 @@ class NodeArtifactTests(unittest.TestCase):
             "retries",
             "uploads",
             "upload-http3",
+            "events",
+            "events-facade",
+            "event-source",
+            "event-source-http3",
+            "event-source-facade",
+            "websocket",
+            "websocket-http3",
+            "websocket-facade",
+            "header-hooks",
+            "header-hooks-facade",
         ):
             self.assertIn(f"tests/{name}.test.cjs", peer)
         self.assertIn(
@@ -350,8 +407,8 @@ class NodeArtifactTests(unittest.TestCase):
             (compiler / "package-lock.json").read_bytes(),
             (artifact.ROOT / "bindings/node/package-lock.json").read_bytes(),
         )
-        self.assertEqual(calls[2][0][:3], ["node", "npm-cli.js", "ci"])
-        self.assertEqual(calls[2][1]["cwd"], compiler)
+        self.assertEqual(calls[1][0][:3], ["node", "npm-cli.js", "ci"])
+        self.assertEqual(calls[1][1]["cwd"], compiler)
         self.assertIn(str(compiler / "node_modules/typescript/bin/tsc"), calls[3][0])
         self.assertTrue(
             all(options["env"] == {"isolated": "environment"} for _, options in calls)
