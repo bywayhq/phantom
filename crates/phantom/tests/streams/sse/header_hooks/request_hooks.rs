@@ -24,14 +24,14 @@ impl RequestHooks for ClientObserver {
     fn on_request(&self, _: &RequestHookContext<'_>) {
         self.0
             .lock()
-            .expect("observer mutex poisoned")
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
             .push("client request");
     }
 
     fn on_response(&self, _: &ResponseHookContext<'_>) {
         self.0
             .lock()
-            .expect("observer mutex poisoned")
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
             .push("client response");
     }
 }
@@ -47,7 +47,7 @@ impl AsyncRequestHooks for SourceObserver {
             tokio::task::yield_now().await;
             self.0
                 .lock()
-                .expect("observer mutex poisoned")
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
                 .push("source request");
             Ok(())
         })
@@ -61,7 +61,7 @@ impl AsyncRequestHooks for SourceObserver {
             tokio::task::yield_now().await;
             self.0
                 .lock()
-                .expect("observer mutex poisoned")
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
                 .push("source response");
             Ok(())
         })
@@ -94,7 +94,7 @@ async fn each_get_observes_client_then_source_hooks() -> TestResult<()> {
             TestResult::Ok(())
         };
         tokio::try_join!(peer, caller)?;
-        assert_eq!(*calls.lock().expect("observer mutex poisoned"), [
+        assert_eq!(*calls.lock().unwrap_or_else(|poisoned| poisoned.into_inner()), [
             "client request", "source request", "client response", "source response",
             "client request", "source request", "client response", "source response",
         ]);
