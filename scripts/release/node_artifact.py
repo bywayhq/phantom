@@ -34,6 +34,7 @@ SOURCES = (
     "lib/prepared-body.cjs",
     "lib/profile.cjs",
     "lib/request-options.cjs",
+    "lib/request-hooks.cjs",
     "lib/request-preparation.cjs",
     "lib/response.cjs",
     "lib/session.cjs",
@@ -300,6 +301,13 @@ def copied_tests(destination, native_package=None):
         ),
         "header-hooks.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
         "header-hooks-facade.test.cjs": (
+            (
+                "path.resolve(__dirname, '../index.cjs')",
+                "require.resolve('@byway/phantom')",
+                1,
+            ),
+        ),
+        "request-hooks-facade.test.cjs": (
             (
                 "path.resolve(__dirname, '../index.cjs')",
                 "require.resolve('@byway/phantom')",
@@ -590,6 +598,7 @@ def public_checks(
                 "tests/websocket-facade.test.cjs",
                 "tests/header-hooks.test.cjs",
                 "tests/header-hooks-facade.test.cjs",
+                "tests/request-hooks-facade.test.cjs",
                 "tests/request-contexts.test.cjs",
                 "tests/unix-socket.test.cjs",
                 "tests/network-facade.test.cjs",

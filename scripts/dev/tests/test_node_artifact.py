@@ -295,6 +295,7 @@ class NodeArtifactTests(unittest.TestCase):
             "events-facade",
             "websocket-facade",
             "header-hooks-facade",
+            "request-hooks-facade",
             "event-source-hooks-facade",
         ):
             copied = (destination / f"{name}.test.cjs").read_text()
@@ -406,6 +407,7 @@ class NodeArtifactTests(unittest.TestCase):
             "websocket-facade",
             "header-hooks",
             "header-hooks-facade",
+            "request-hooks-facade",
         ):
             self.assertIn(f"tests/{name}.test.cjs", peer)
         self.assertIn(
