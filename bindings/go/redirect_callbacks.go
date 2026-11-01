@@ -39,7 +39,7 @@ func (a RedirectAttempt) GoString() string { return a.String() }
 // returns a redirect error retaining the original error through errors.Is/As.
 // Callbacks may run concurrently across requests and must honor cancellation.
 // Do and Shutdown wait for actual callback return; user code is not preempted.
-// Cancellation and total-deadline failures take precedence over late replies.
+// Cancellation and total deadlines remain primary, retaining late errors.
 // Replay safety, credential stripping and attempt budgets remain enforced.
 type RedirectCallback func(context.Context, RedirectAttempt) (RedirectDecision, error)
 
@@ -118,6 +118,9 @@ func (h *requestHooks) invokeRedirect(operation uint64, call *redirectCall) erro
 	}
 	h.redirectHop = call.attempt.Hop
 	decision, err := h.redirect(h.ctx, call.attempt)
+	if err != nil {
+		h.failure, h.failureKind = err, "redirect"
+	}
 	if h.ctx.Err() != nil {
 		return nil
 	}

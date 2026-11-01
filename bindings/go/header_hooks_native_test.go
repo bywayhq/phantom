@@ -96,6 +96,7 @@ func TestHeaderHookCancellationAndTotalTimeoutDoNotSpendAttempts(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { hits.Add(1); w.WriteHeader(204) }))
 			defer server.Close()
 			entered := make(chan struct{})
+			cause := &hookTestError{}
 			config := Config{}
 			if total {
 				config.Timeout = 200 * time.Millisecond
@@ -113,7 +114,7 @@ func TestHeaderHookCancellationAndTotalTimeoutDoNotSpendAttempts(t *testing.T) {
 				_, err := client.Do(ctx, Request{Method: "GET", URL: server.URL, Budget: budget, HeaderHooks: []HeaderHook{func(ctx context.Context, _ *HeaderHookContext) error {
 					close(entered)
 					<-ctx.Done()
-					return ctx.Err()
+					return cause
 				}}})
 				result <- err
 			}()
@@ -127,6 +128,13 @@ func TestHeaderHookCancellationAndTotalTimeoutDoNotSpendAttempts(t *testing.T) {
 			}
 			select {
 			case err := <-result:
+				if !errors.Is(err, cause) {
+					t.Fatal("late hook error was lost")
+				}
+				var failure *Error
+				if total && (!errors.As(err, &failure) || failure.TimeoutPhase != "total") {
+					t.Fatalf("total timeout metadata changed: %v", err)
+				}
 				if total {
 					if kind(err) != "timeout" {
 						t.Fatalf("total timeout: %v", err)

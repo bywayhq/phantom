@@ -2,6 +2,7 @@ package phantom
 
 import (
 	"context"
+	"errors"
 	"runtime"
 
 	"github.com/bywayhq/phantom/bindings/go/internal/native"
@@ -10,7 +11,8 @@ import (
 // HeaderHook edits caller headers before a logical Do or Events request is sent.
 // Client hooks run first, then request hooks. Redirects and retries reuse the
 // result. Functions run on the calling goroutine and must honor ctx cancellation.
-// Hooks on different requests may run concurrently.
+// Hooks on different requests may run concurrently. Cancellation and total
+// deadlines remain primary while errors.Is/As also retains late hook errors.
 type HeaderHook func(ctx context.Context, headers *HeaderHookContext) error
 
 // HeaderHookContext exposes the initial resolved request and ordered caller
@@ -252,13 +254,14 @@ func (h *requestHooks) invoke(operation uint64, call *headerCall) error {
 	}
 	h.next++
 	err := h.hooks[call.index](h.ctx, &call.context)
+	if err != nil {
+		h.failure, h.failureKind = err, "header_hook"
+	}
 	if h.ctx.Err() != nil {
 		return nil
 	}
 	outcome := uint64(0)
 	if err != nil {
-		h.failure = err
-		h.failureKind = "header_hook"
 		outcome = 1
 	}
 	edits := call.context.edits
@@ -276,12 +279,20 @@ func (h *requestHooks) invoke(operation uint64, call *headerCall) error {
 }
 
 func (h *requestHooks) wrap(err error) error {
-	if h != nil && h.failure != nil {
-		if failure, ok := err.(*Error); ok && failure.Kind == h.failureKind {
-			copy := *failure
-			copy.cause = h.failure
-			return &copy
-		}
+	if h == nil || err == nil || h.failure == nil {
+		return err
 	}
-	return err
+	var primary *Error
+	if errors.As(err, &primary) {
+		copy := *primary
+		copy.cause = errors.Join(err, h.failure)
+		return &copy
+	}
+	kind := h.failureKind
+	if errors.Is(err, context.Canceled) {
+		kind = "cancelled"
+	} else if errors.Is(err, context.DeadlineExceeded) {
+		kind = "timeout"
+	}
+	return &Error{Kind: kind, cause: errors.Join(err, h.failure)}
 }

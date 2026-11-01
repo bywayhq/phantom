@@ -74,7 +74,7 @@ func TestPureHeaderHooksSnapshotListsAndPreserveOriginalErrors(t *testing.T) {
 		t.Fatal("original callback error missing")
 	}
 	timeout := &Error{Kind: "timeout"}
-	if hooks.wrap(timeout) != timeout {
+	if got := hooks.wrap(timeout); !errors.Is(got, timeout) || !errors.Is(got, cause) || kind(got) != "timeout" {
 		t.Fatal("callback error replaced the timeout")
 	}
 	if _, err := newRequestHooks(context.Background(), []HeaderHook{nil}, nil, nil); kind(err) != "invalid_header_hooks" {

@@ -25,6 +25,7 @@ func TestRedirectCallbackDeadlineAndCancellationKeepSharedAllowance(t *testing.T
 	for _, cancelCaller := range []bool{false, true} {
 		t.Run(map[bool]string{false: "total", true: "caller"}[cancelCaller], func(t *testing.T) {
 			before := sends.Load()
+			cause := &callbackFailure{marker: 43}
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			budget, err := NewAttemptBudget(2)
@@ -37,12 +38,19 @@ func TestRedirectCallbackDeadlineAndCancellationKeepSharedAllowance(t *testing.T
 					cancel()
 				}
 				<-ctx.Done()
-				return RedirectFollow, nil
+				return 0, cause
 			}}}
 			if !cancelCaller {
 				request.Timeout = 200 * time.Millisecond
 			}
 			_, err = client.Do(ctx, request)
+			if !errors.Is(err, cause) {
+				t.Fatal("late redirect error was lost")
+			}
+			var failure *Error
+			if !cancelCaller && (!errors.As(err, &failure) || failure.TimeoutPhase != "total") {
+				t.Fatalf("total timeout metadata changed: %v", err)
+			}
 			if cancelCaller {
 				if !errors.Is(err, context.Canceled) {
 					t.Fatalf("caller cancellation: %v", err)

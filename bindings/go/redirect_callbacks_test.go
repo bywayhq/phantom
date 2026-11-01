@@ -48,7 +48,7 @@ func TestPureRedirectCallbackErrorIdentityAndRedaction(t *testing.T) {
 		t.Fatal("redirect failure lost original cause")
 	}
 	timeout := &Error{Kind: "timeout"}
-	if owner.wrap(timeout) != timeout {
+	if got := owner.wrap(timeout); !errors.Is(got, timeout) || !errors.Is(got, cause) || kind(got) != "timeout" {
 		t.Fatal("callback failure replaced timeout")
 	}
 	attempt := RedirectAttempt{FromURL: "https://origin/private?canary", ToURL: "https://other/canary", Status: 303, Hop: 1}
