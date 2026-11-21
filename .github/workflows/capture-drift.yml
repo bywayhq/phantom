@@ -1,0 +1,182 @@
+# Scheduled drift check: capture the macOS runner's current Chrome wire fingerprint
+# and, when it no longer matches a retained fixture (a new version, or a changed
+# ClientHello), open a reviewable draft PR with the refreshed TLS/QUIC ClientHello
+# fixtures and an issue to author the phantom-profile entry.
+#
+# This turns "someone notices phantom fell behind the stable channel" (the gap that
+# left the catalog without a recipe for current Chrome) into a weekly PR to review.
+# Scope is Chrome on macOS for now — the dominant wire profile, and the browser the
+# runner image carries and keeps current; a matrix can add Edge (installable) later.
+# Brave/Opera share Chromium's wire, so Chrome coverage carries most of it.
+#
+# The PR is a DRAFT proposal: the version/platform path is computed from the runner,
+# so review confirms the slug before merge, and a maintainer still authors the Rust
+# `phantom-profile` entry from the refreshed fixtures (that step is guided, not auto).
+name: Capture drift (Chrome wire fingerprint)
+
+on:
+  schedule:
+    - cron: "17 7 * * 1" # Mondays 07:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: capture-drift
+  cancel-in-progress: false
+
+jobs:
+  chrome:
+    name: Chrome wire drift (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest
+            python_arch: arm64
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: true
+
+      - name: Install Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+          architecture: ${{ matrix.python_arch }}
+
+      - name: Install pinned capture dependencies
+        run: python -m pip install --require-hashes -r scripts/requirements.txt
+
+      - name: Identify the runner's Chrome
+        id: chrome
+        shell: bash
+        run: |
+          set -euo pipefail
+          app="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+          [ -x "$app" ] || { echo "::error::Google Chrome is not installed on this runner"; exit 1; }
+          version="$("$app" --version | sed -E 's/^Google Chrome[[:space:]]+//; s/[[:space:]]+$//')"
+          platform="macos-$(sw_vers -productVersion)-$(uname -m)"
+          echo "path=$app" >>"$GITHUB_OUTPUT"
+          echo "version=$version" >>"$GITHUB_OUTPUT"
+          echo "platform=$platform" >>"$GITHUB_OUTPUT"
+          echo "Chrome $version on $platform"
+
+      - name: Capture a fingerprint snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p target/capture-drift
+          python -m scripts.capture.snapshot \
+            --browser chrome \
+            --browser-path "${{ steps.chrome.outputs.path }}" \
+            --client-version "${{ steps.chrome.outputs.version }}" \
+            --operating-system "${{ steps.chrome.outputs.platform }}" \
+            --headful --repeat 3 \
+            --output-dir target/capture-drift
+
+      - name: Compare against retained fixtures
+        id: compare
+        shell: bash
+        run: |
+          set -uo pipefail
+          report=target/capture-drift/compare.txt
+          if python -m scripts.capture.snapshot_compare \
+              --browser chrome target/capture-drift/snapshot-1.txt >"$report" 2>&1; then
+            echo "drift=false" >>"$GITHUB_OUTPUT"
+            echo "No drift: Chrome $CHROME_VERSION matches a retained fixture."
+          else
+            echo "drift=true" >>"$GITHUB_OUTPUT"
+            echo "Drift detected for Chrome $CHROME_VERSION:"
+          fi
+          cat "$report" || true
+        env:
+          CHROME_VERSION: ${{ steps.chrome.outputs.version }}
+
+      - name: Retain the capture
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: chrome-capture-${{ steps.chrome.outputs.version }}-${{ matrix.runner }}-${{ github.run_id }}
+          path: target/capture-drift/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Refresh fixtures and open a draft PR
+        if: steps.compare.outputs.drift == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.chrome.outputs.version }}
+          PLATFORM: ${{ steps.chrome.outputs.platform }}
+        run: |
+          set -euo pipefail
+          branch="capture-drift/chrome-${VERSION}"
+          # One open PR per version: if the branch already exists upstream, this drift
+          # is already filed — leave it for review rather than duplicating it each week.
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+            echo "Branch $branch already exists; drift for Chrome $VERSION is already filed."
+            exit 0
+          fi
+
+          tls_dir="fixtures/tls/chrome/${VERSION}/${PLATFORM}"
+          h3_dir="fixtures/http3/chrome/${VERSION}/${PLATFORM}"
+          split=target/capture-drift/split
+          mkdir -p "$split" "$tls_dir" "$h3_dir"
+          python -m scripts.capture.snapshot \
+            --split target/capture-drift/snapshot-1.txt --output-dir "$split"
+          # `--split` writes the TLS and QUIC ClientHellos flat; place each in its layer.
+          [ -f "$split/client-hello.txt" ] && cp "$split/client-hello.txt" "$tls_dir/client-hello.txt"
+          [ -f "$split/quic-client-hello.txt" ] && cp "$split/quic-client-hello.txt" "$h3_dir/quic-client-hello.txt"
+
+          # Stage first: a new version's fixtures land at a new, untracked path, which
+          # `git diff` (tracked-only) would miss — `git diff --cached` sees staged adds.
+          git add fixtures/tls/chrome fixtures/http3/chrome
+          if git diff --cached --quiet; then
+            echo "Snapshot differs but produced no new fixture files; opening an issue only."
+          else
+            # Standard Actions bot identity, assembled from parts so no literal address
+            # sits in the source.
+            noreply="users.noreply.github.com"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@${noreply}"
+            git switch -c "$branch"
+            git commit \
+              -m "fixtures(chrome): capture ${VERSION} ${PLATFORM} wire ClientHellos" \
+              -m "Captured on the ${{ matrix.runner }} runner by the scheduled capture-drift workflow because Chrome ${VERSION} no longer matched a retained fixture. Draft: review the computed version/platform path, then author the phantom-profile entry (crates/phantom-profile/catalog/README.md)."
+            git push origin "$branch"
+            printf '%s\n\n%s\n\n%s\n' \
+              "Automated capture of Chrome \`${VERSION}\` on \`${PLATFORM}\` from the scheduled drift check; the runner's Chrome no longer matched a retained fixture." \
+              "**Review before merge:** confirm the computed path \`fixtures/tls/chrome/${VERSION}/${PLATFORM}/\` matches the platform-slug convention, then author the \`phantom-profile\` entry from these fixtures per \`crates/phantom-profile/catalog/README.md\`. Draft until both are done." \
+              "Drift report and the full capture are in the run's \`chrome-capture-${VERSION}\` artifact." >target/capture-drift/pr-body.md
+            gh pr create --draft --head "$branch" --base main \
+              --title "fixtures(chrome): ${VERSION} wire ClientHellos (capture drift)" \
+              --body-file target/capture-drift/pr-body.md
+          fi
+
+      - name: Open or update the authoring issue
+        if: steps.compare.outputs.drift == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.chrome.outputs.version }}
+          PLATFORM: ${{ steps.chrome.outputs.platform }}
+        run: |
+          set -euo pipefail
+          title="phantom-profile stale for Chrome ${VERSION}"
+          if gh issue list --state open --search "in:title ${title}" --json title \
+              --jq '.[].title' | grep -qxF "$title"; then
+            echo "Authoring issue for Chrome $VERSION already open."
+            exit 0
+          fi
+          printf '%s\n\n%s\n' \
+            "The scheduled capture-drift workflow found the runner's Chrome at \`${VERSION}\` (\`${PLATFORM}\`) no longer matching a retained wire fixture — phantom has no transport profile for this version." \
+            "To close: review the draft fixtures PR (branch \`capture-drift/chrome-${VERSION}\`), then author the \`phantom-profile\` connection + request-template entry per \`crates/phantom-profile/catalog/README.md\`. Capture artifact: the run's \`chrome-capture-${VERSION}\`." >target/capture-drift/issue-body.md
+          gh issue create --title "$title" --body-file target/capture-drift/issue-body.md \
+            || echo "Issue creation skipped (likely already exists)."
