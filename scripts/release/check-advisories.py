@@ -139,6 +139,26 @@ def audit_inputs(
     return packages, identities, backports
 
 
+def reviewed_fixes(
+    config: dict[str, Any],
+) -> dict[str, tuple[tuple[str, str], dict[str, Any]]]:
+    """Every reviewed fix by the advisory id it answers, with the upstream `(name, version)` that
+    `cargo audit` reports the finding against. A fix is registered once, under the id it was reviewed
+    by — a `RUSTSEC-*` id for an RustSec-database finding (`rust-fixes`), or the `GHSA-*`/`CVE-*` id a
+    source or registry fix was reviewed by. When the advisory database later assigns a `RUSTSEC-*` id
+    to a `GHSA-*`/`CVE-*` already reviewed here, `cargo audit` reports the finding under that new id
+    with the original as an alias; `review_audit` matches on either, so the existing review still
+    resolves it rather than reading as a fresh, unresolved advisory."""
+    fixes: dict[str, tuple[tuple[str, str], dict[str, Any]]] = {}
+    for advisory, fix in config["rust-fixes"].items():
+        fixes[advisory] = (tuple(fix["identity"]), fix)
+    for advisory, fix in config["source-fixes"].items():
+        fixes[advisory] = (tuple(fix["upstream"]), fix)
+    for advisory, fix in config["registry-fixes"].items():
+        fixes[advisory] = (tuple(fix["identity"]), fix)
+    return fixes
+
+
 def review_audit(data: dict[str, Any], status: int, config: dict[str, Any]) -> None:
     findings = data["vulnerabilities"]["list"]
     if data["vulnerabilities"]["count"] != len(findings):
@@ -147,12 +167,23 @@ def review_audit(data: dict[str, Any], status: int, config: dict[str, Any]) -> N
         raise RuntimeError("audit warnings require review; see audit.json")
     if data.get("error") or status not in (0, 1) or (status == 1 and not findings):
         raise RuntimeError("advisory audit failed; see audit.json and audit.log")
+    fixes = reviewed_fixes(config)
     for finding in findings:
         advisory, package = finding["advisory"], finding["package"]
-        fix = config["rust-fixes"].get(advisory["id"])
-        if not fix or tuple(fix["identity"]) != (package["name"], package["version"]):
+        names = [advisory["id"], *advisory.get("aliases", ())]
+        matched = next((name for name in names if name in fixes), None)
+        if matched is None:
             raise RuntimeError(f"unresolved advisory: {advisory['id']}")
-        print(f"Retained backport: {advisory['id']}; {', '.join(fix['patches'])}")
+        identity, fix = fixes[matched]
+        if identity != (package["name"], package["version"]):
+            raise RuntimeError(f"unresolved advisory: {advisory['id']}")
+        patches = ", ".join(fix.get("patches", ())) or "reviewed registry version"
+        named = (
+            advisory["id"]
+            if matched == advisory["id"]
+            else f"{advisory['id']} (as {matched})"
+        )
+        print(f"Retained backport: {named}; {patches}")
 
 
 def check(output: Path) -> None:
