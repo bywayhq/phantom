@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add a scheduled `capture-drift` workflow that snapshots the macOS runner's current
+  Chrome wire fingerprint weekly and, when it no longer matches a retained fixture
+  (a new version or a changed ClientHello), opens a draft PR with the refreshed
+  TLS/QUIC ClientHello fixtures and an issue to author the `phantom-profile` entry.
 - Avoid Windows reserved-port blocks when pairing TCP and UDP capture listeners.
 - Keep repeated capture cleanup idempotent on Python 3.12.
 - Keep encrypted DNS binding checks from stalling on Python 3.12.
