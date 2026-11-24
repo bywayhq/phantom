@@ -31,10 +31,10 @@ ALLOC_STDLIB_LICENSE_SHA256 = (
 )
 ALLOC_STDLIB_LICENSE_PATH = "scripts/release/notices/alloc-stdlib-0.3.0.LICENSE"
 NAPI_RS_LICENSE_REVISIONS = {
-    ("napi", "3.15.0"): "d9cb526c15e63ba30e06b4d169068c9854180595",
+    ("napi", "3.16.2"): "cda88ea649a2e182e0b6f7ec9cb8a6db7758b47d",
     ("napi-build", "2.6.0"): "a94cef33f62e74682963dd085e283f52dcec2600",
-    ("napi-derive", "3.6.13"): "d9cb526c15e63ba30e06b4d169068c9854180595",
-    ("napi-derive-backend", "6.1.6"): "d9cb526c15e63ba30e06b4d169068c9854180595",
+    ("napi-derive", "3.7.1"): "cda88ea649a2e182e0b6f7ec9cb8a6db7758b47d",
+    ("napi-derive-backend", "7.0.1"): "cda88ea649a2e182e0b6f7ec9cb8a6db7758b47d",
     ("napi-sys", "3.4.1"): "d9cb526c15e63ba30e06b4d169068c9854180595",
 }
 NAPI_RS_LICENSE_SHA256 = (
