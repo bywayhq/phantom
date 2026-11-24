@@ -268,6 +268,47 @@ class AdvisoryChecks(unittest.TestCase):
             ):
                 advisories.review_audit(report, 1, self.config)
 
+    def test_rustsec_id_assigned_to_a_reviewed_alias_resolves(self) -> None:
+        # A GHSA a source fix was reviewed by (quinn-proto GHSA-wppq-2f6r-wfvm) is later given a
+        # RUSTSEC id; cargo audit then reports the finding under the RUSTSEC id with the GHSA as an
+        # alias. The existing review must still resolve it rather than read as a fresh advisory.
+        def finding(advisory: dict, version: str = "0.11.18") -> dict:
+            return {
+                "vulnerabilities": {
+                    "count": 1,
+                    "list": [
+                        {
+                            "advisory": advisory,
+                            "package": {"name": "quinn-proto", "version": version},
+                        }
+                    ],
+                },
+                "warnings": {},
+            }
+
+        with redirect_stdout(io.StringIO()):
+            advisories.review_audit(
+                finding(
+                    {"id": "RUSTSEC-2026-0524", "aliases": ["GHSA-wppq-2f6r-wfvm"]}
+                ),
+                1,
+                self.config,
+            )
+        # A RUSTSEC id whose alias was never reviewed, or the right alias against the wrong package
+        # version, both stay unresolved.
+        for report in (
+            finding({"id": "RUSTSEC-2026-0525", "aliases": ["GHSA-never-reviewed"]}),
+            finding(
+                {"id": "RUSTSEC-2026-0524", "aliases": ["GHSA-wppq-2f6r-wfvm"]},
+                "0.11.19",
+            ),
+        ):
+            with (
+                self.subTest(report=report),
+                self.assertRaisesRegex(RuntimeError, "unresolved advisory"),
+            ):
+                advisories.review_audit(report, 1, self.config)
+
     def test_warnings_and_audit_errors_remain_failures_with_known_findings(
         self,
     ) -> None:
