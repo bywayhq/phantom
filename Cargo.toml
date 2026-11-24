@@ -39,7 +39,7 @@ version = "0.6.0"
 btls = { package = "phantom-btls", version = "=0.5.6-phantom.19", path = "vendor/btls", default-features = false }
 btls-sys = { package = "phantom-btls-sys", version = "=0.5.6-phantom.3", path = "vendor/btls-sys", default-features = false }
 brotli = "9.0.0"
-bytes = "=1.12.1"
+bytes = "=1.12.2"
 flate2 = "1.1.9"
 h3 = { package = "phantom-h3", version = "=0.0.8-phantom.20", path = "vendor/h3/h3", default-features = false, features = ["tracing"] }
 h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.20", path = "vendor/h3/h3-datagram", default-features = false, features = ["tracing"] }
