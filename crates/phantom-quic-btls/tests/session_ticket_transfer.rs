@@ -147,8 +147,9 @@ fn capture(owner: &QuicSessionTicketCacheOwner, context: &SslContext) -> TestRes
 fn install(client: &Client, snapshot: &Snapshot) -> TestResult {
     let mut opened = open_envelope(snapshot.envelope.as_bytes(), &SNAPSHOT_KEY, &client.context)?;
     let mut permits = Vec::new();
-    for index in 0..opened.record_count() {
-        assert_eq!(opened.owner_metadata(index)?, &*snapshot.metadata[index]);
+    assert_eq!(opened.record_count(), snapshot.metadata.len());
+    for (index, expected) in snapshot.metadata.iter().enumerate() {
+        assert_eq!(opened.owner_metadata(index)?, &**expected);
         permits.push(opened.authorize_record(index, &client.binding)?);
     }
     let mut replacement =

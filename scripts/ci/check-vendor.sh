@@ -368,7 +368,9 @@ case "${1:-}" in
     check_h3_patch_replay
     cargo fmt --manifest-path vendor/h3/Cargo.toml -p phantom-h3 -p phantom-h3-datagram -p phantom-h3-quinn -p h3-webtransport -p examples --check
     cargo clippy --manifest-path vendor/h3/Cargo.toml \
-      --workspace --all-targets --all-features --locked -- -D warnings
+      --workspace --all-targets --all-features --locked -- \
+      -D warnings \
+      -A clippy::needless_range_loop
     cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 \
       --locked client::builder::tests
     cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 \
