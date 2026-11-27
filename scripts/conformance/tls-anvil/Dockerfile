@@ -9,6 +9,6 @@ COPY . .
 RUN cargo build --release --locked -p phantom-net --features danger-disable-verification \
     --example tls_anvil_client
 
-FROM ghcr.io/tls-attacker/tlsanvil@sha256:a8a4bb924b09453926ccb4721028c68051c7b61168829469a28f5af47df311d4
+FROM ghcr.io/tls-attacker/tlsanvil@sha256:7137ab5b38cde07c697b9950a55bb1361e367b67cb328a11f7581d6f9272042a
 
 COPY --from=builder /source/target/release/examples/tls_anvil_client /adapter/phantom-tls-anvil
